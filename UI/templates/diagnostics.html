@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% set active_page = 'diagnostics' %}
+{% block title %}Diagnostics{% endblock %}
+
+{% block content %}
+  <h2 class="text-2xl font-bold text-gray-800 mb-6">Diagnostics</h2>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white p-4 rounded-lg shadow">
+      <h3 class="font-semibold mb-2">Temperature</h3>
+      <div id="chart2"></div>
+    </div>
+
+    <div class="bg-white p-4 rounded-lg shadow">
+      <h3 class="font-semibold mb-2">Battery Voltage</h3>
+      <div id="chart3"></div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block head %}
+<script>
+  async function loadDiagnostics() {
+    const res = await fetch(`/api/data?hours=24`);
+    const data = await res.json();
+
+    Highcharts.chart('chart2', {
+      chart: { type: 'line' },
+      title: { text: 'Temperature (°C)' },
+      xAxis: { type: 'datetime' },
+      yAxis: { title: { text: '°C' } },
+      series: [{ name: 'Temperature', data: data.temperature }]
+    });
+
+    Highcharts.chart('chart3', {
+      chart: { type: 'line' },
+      title: { text: 'Battery Voltage (V)' },
+      xAxis: { type: 'datetime' },
+      yAxis: { title: { text: 'V' } },
+      series: [{ name: 'Voltage', data: data.battery_voltage }]
+    });
+  }
+
+  loadDiagnostics();
+</script>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% set active_page = 'weather' %}
+{% block title %}Weather{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h2 class="text-xl font-semibold mb-2">Krátkodobá předpověď</h2>
+  <div id="meteogram" style="height: 500px;"></div>
+</div>
+
+<div class="mt-10">
+  <h2 class="text-xl font-semibold mb-2">Dlouhodobá předpověď</h2>
+  <div id="forecastCards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4"></div>
+</div>
+{% endblock %}
+
+{% block head %}
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/datagrouping.js"></script>
+<script src="https://code.highcharts.com/modules/windbarb.js"></script>
+<script src="https://code.highcharts.com/modules/pattern-fill.js"></script>
+<script src="https://code.highcharts.com/modules/data.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+<script src="https://code.highcharts.com/themes/adaptive.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async function () {
+  try {
+    const response = await fetch('/api/weather/meteogram');
+    const data = await response.json();
+
+    const temperature = data.map(d => [d.time, d.temperature]);
+    const windbarbs = data.map(d => ({ x: d.time, value: d.wind, direction: d.wind_direction }));
+    const rain = data.map(d => [d.time, d.rain]);
+    const pressure = data.map(d => [d.time, d.pressure]);
+
+    Highcharts.chart('meteogram', {
+      chart: {
+        height: 500,
+        zoomType: 'x'
+      },
+      title: {
+        text: 'Meteogram: Krátkodobá předpověď'
+      },
+      xAxis: {
+        type: 'datetime'
+      },
+      yAxis: [{
+        title: {
+          text: 'Teplota (°C)'
+        },
+        opposite: false
+      }, {
+        title: { text: 'Tlak (hPa)' },
+        opposite: true
+      }],
+      tooltip: {
+        shared: true,
+        xDateFormat: '%A, %e. %B %H:%M'
+      },
+      series: [
+        {
+          name: 'Teplota',
+          type: 'spline',
+          data: temperature,
+          tooltip: { valueSuffix: ' °C' },
+          color: '#f45b5b',
+          yAxis: 0
+        },
+        {
+          name: 'Srážky',
+          type: 'column',
+          data: rain,
+          tooltip: { valueSuffix: ' mm' },
+          color: '#7cb5ec'
+          
+        },
+        {
+          name: 'Tlak vzduchu',
+          type: 'spline',
+          data: pressure,
+          tooltip: { valueSuffix: ' hPa' },
+          color: '#ffff00',
+          yAxis: 1,
+          dashStyle: 'shortdot'
+        },
+        {
+          name: 'Vítr',
+          type: 'windbarb',
+          data: windbarbs,
+          color: '#90ed7d',
+          yOffset: -20,
+          tooltip: { valueSuffix: ' m/s' },
+          yAxis: 0
+        }
+      ]
+    });
+  } catch (error) {
+    console.error('Chyba při načítání krátkodobé předpovědi:', error);
+  }
+
+  try {
+    const forecast = await fetch('/api/weather/daily');
+    const forecastData = await forecast.json();
+    const cards = document.getElementById('forecastCards');
+    cards.innerHTML = '';
+    forecastData.forEach(day => {
+      const card = document.createElement('div');
+      card.className = 'bg-white p-4 rounded shadow text-center';
+      card.innerHTML = `
+        <div class="text-sm text-gray-600">${day.date}</div>
+        <img src="https://api.met.no/images/weathericons/svg/${day.icon}.svg" alt="${day.icon}" class="h-10 mx-auto my-2">
+        <div class="text-lg font-semibold">${day.temp.toFixed(1)} °C</div>
+        <div class="text-sm text-gray-700">💧 ${day.rain} mm</div>
+        <div class="text-sm text-gray-700">💨 avg: ${day.wind_avg.toFixed(1)} | max: ${day.wind_gust.toFixed(1)} m/s</div>
+      `;
+      cards.appendChild(card);
+    });
+  } catch (error) {
+    console.error('Chyba při načítání dlouhodobé předpovědi:', error);
+  }
+});
+</script>
+{% endblock %}
