@@ -15,109 +15,148 @@
 {% endblock %}
 
 {% block head %}
-<script src="https://code.highcharts.com/highcharts.js"></script>
-<script src="https://code.highcharts.com/modules/datagrouping.js"></script>
 <script src="https://code.highcharts.com/modules/windbarb.js"></script>
-<script src="https://code.highcharts.com/modules/pattern-fill.js"></script>
-<script src="https://code.highcharts.com/modules/data.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
-<script src="https://code.highcharts.com/modules/accessibility.js"></script>
-<script src="https://code.highcharts.com/themes/adaptive.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', async function () {
+  const container = document.getElementById('meteogram');
+
   try {
-    const response = await fetch('/api/weather/meteogram');
-    const data = await response.json();
+    const res = await fetch('/api/weather/meteogram');
+    const data = await res.json();
+    if (data.error || !Array.isArray(data)) {
+      container.innerText = 'Chyba načítání meteogramu.';
+      return;
+    }
 
     const temperature = data.map(d => [d.time, d.temperature]);
-    const windbarbs = data.map(d => ({ x: d.time, value: d.wind, direction: d.wind_direction }));
     const rain = data.map(d => [d.time, d.rain]);
     const pressure = data.map(d => [d.time, d.pressure]);
+    const windbarbs = data.map(d => ({
+      x: d.time,
+      value: d.wind,
+      direction: d.wind_direction
+    }));
+    const weatherIcons = [];
+    let lastSymbol = null;
+
+    data.forEach(d => {
+      if (d.symbol_code !== lastSymbol) {
+        weatherIcons.push({
+          x: d.time,
+          y: d.temperature + 1.5,
+          marker: {
+            symbol: `url(https://api.met.no/images/weathericons/png/${d.symbol_code}.png)`,
+            width: 28,
+            height: 28
+          }
+        });
+        lastSymbol = d.symbol_code;
+      }
+    });
 
     Highcharts.chart('meteogram', {
       chart: {
         height: 500,
-        zoomType: 'x'
+        zoomType: 'x',
+        backgroundColor: '#ffffff'
       },
-      title: {
-        text: 'Meteogram: Krátkodobá předpověď'
-      },
-      xAxis: {
-        type: 'datetime'
-      },
+      title: { text: 'Meteogram' },
+      legend: { enabled: false }, // 
+      xAxis: [{
+        type: 'datetime',
+        tickInterval: 6 * 3600 * 1000,
+        labels: { format: '{value:%H}' }},
+        { // Top X axis
+            linkedTo: 0,
+            type: 'datetime',
+            tickInterval: 24 * 3600 * 1000,
+            labels: {
+                format: '{value:<span style="font-size: 12px; font-weight: ' +
+                    'bold">%a</span> %b %e}',
+                align: 'left',
+                x: 3,
+                y: 8
+            },
+            opposite: true,
+            tickLength: 20,
+            gridLineWidth: 1
+        
+      }],
       yAxis: [{
-        title: {
-          text: 'Teplota (°C)'
-        },
-        opposite: false
+        title: { text: 'Teplota (°C)' },
       }, {
         title: { text: 'Tlak (hPa)' },
         opposite: true
       }],
       tooltip: {
         shared: true,
-        xDateFormat: '%A, %e. %B %H:%M'
+        xDateFormat: '%e. %b %H:%M'
       },
-      series: [
-        {
+      series: [{ 
           name: 'Teplota',
           type: 'spline',
           data: temperature,
-          tooltip: { valueSuffix: ' °C' },
-          color: '#f45b5b',
-          yAxis: 0
-        },
-        {
+          yAxis: 0,
+          color: '#f45b5b'
+        },{
           name: 'Srážky',
           type: 'column',
           data: rain,
-          tooltip: { valueSuffix: ' mm' },
+          pointWidth: 6,
+          yAxis: 0,
           color: '#7cb5ec'
-          
-        },
-        {
-          name: 'Tlak vzduchu',
-          type: 'spline',
-          data: pressure,
-          tooltip: { valueSuffix: ' hPa' },
-          color: '#ffff00',
-          yAxis: 1,
-          dashStyle: 'shortdot'
-        },
-        {
-          name: 'Vítr',
-          type: 'windbarb',
-          data: windbarbs,
-          color: '#90ed7d',
-          yOffset: -20,
-          tooltip: { valueSuffix: ' m/s' },
-          yAxis: 0
-        }
+      },{
+        name: 'Tlak vzduchu',
+        type: 'spline',
+        data: pressure,
+        yAxis: 1,
+        dashStyle:'shortdot',
+        color: '#66cc66'
+      },{
+        name: 'Vítr',
+        type: 'column',
+        data: data.map(d => [d.time, d.wind]),
+        
+        color: '#90caf9',
+        pointWidth: 8,
+        tooltip: { valueSuffix: ' m/s' }
+      },{
+        name: 'Ikony',
+        type: 'scatter',
+        data: weatherIcons,
+        tooltip: { enabled: false },
+        enableMouseTracking: false }
       ]
     });
-  } catch (error) {
-    console.error('Chyba při načítání krátkodobé předpovědi:', error);
+  } catch (err) {
+    console.error('Chyba při načítání krátkodobé předpovědi:', err);
+    container.innerText = 'Chyba načítání meteogramu.';
   }
 
+
   try {
-    const forecast = await fetch('/api/weather/daily');
-    const forecastData = await forecast.json();
+    const response = await fetch('/api/weather/daily');
+    const forecastData = await response.json();
     const cards = document.getElementById('forecastCards');
     cards.innerHTML = '';
+
     forecastData.forEach(day => {
       const card = document.createElement('div');
       card.className = 'bg-white p-4 rounded shadow text-center';
       card.innerHTML = `
         <div class="text-sm text-gray-600">${day.date}</div>
-        <img src="https://api.met.no/images/weathericons/svg/${day.icon}.svg" alt="${day.icon}" class="h-10 mx-auto my-2">
+        <img src="https://api.met.no/images/weathericons/png/${day.icon}.png" alt="${day.icon}" class="h-10 mx-auto my-2">
         <div class="text-lg font-semibold">${day.temp.toFixed(1)} °C</div>
         <div class="text-sm text-gray-700">💧 ${day.rain} mm</div>
         <div class="text-sm text-gray-700">💨 avg: ${day.wind_avg.toFixed(1)} | max: ${day.wind_gust.toFixed(1)} m/s</div>
       `;
       cards.appendChild(card);
     });
-  } catch (error) {
-    console.error('Chyba při načítání dlouhodobé předpovědi:', error);
+  } catch (err) {
+    console.error('Chyba při načítání dlouhodobé předpovědi:', err);
+    document.getElementById('forecastCards').innerText = 'Chyba načítání předpovědi.';
   }
 });
 </script>
