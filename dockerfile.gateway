@@ -1,0 +1,11 @@
+# Dockerfile.gateway
+FROM python:3.11-slim AS base
+WORKDIR /app
+COPY LoraGateway.py /app/main.py
+
+FROM base AS build
+RUN pip install --no-cache-dir pyserial redis psycopg2-binary
+
+FROM base AS final
+COPY --from=build /usr/local /usr/local
+CMD ["python", "main.py"]

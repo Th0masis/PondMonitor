@@ -1,39 +1,65 @@
+import os
+import json
 import requests
-from datetime import datetime,timezone, timedelta
-import time
-from flask import Flask, render_template, request, jsonify
 import psycopg2
+from datetime import datetime, timezone, timedelta
+from flask import Flask, render_template, request, jsonify
 from collections import defaultdict
+from dotenv import load_dotenv
+import redis
+
+load_dotenv()
 
 app = Flask(__name__)
 
+# Load DB config from .env
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "database": "pond_data",
-    "user": "pond_user",
-    "password": "secretpassword"
+    "host": os.getenv("PG_HOST", "localhost"),
+    "port": int(os.getenv("PG_PORT", 5432)),
+    "database": os.getenv("POSTGRES_DB", "pond_data"),
+    "user": os.getenv("POSTGRES_USER", "pond_user"),
+    "password": os.getenv("POSTGRES_PASSWORD", "secretpassword")
 }
 
-LATEST_STATUS = {
-    "battery_v": 3.74,
-    "solar_v": 5.08,
-    "signal_dbm": -98,
-    "last_heartbeat": datetime.now(timezone.utc)
-}
+# Connect Redis
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+redis_client = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
 
 
 @app.route("/")
 def dashboard():
     return render_template("dashboard.html")
 
+
 @app.route("/weather")
 def weather():
     return render_template("weather.html")
 
+
 @app.route("/diagnostics")
 def diagnostics():
     return render_template("diagnostics.html")
+
+
+@app.route("/api/status")
+def get_status():
+    try:
+        raw = redis_client.get("latest_status")
+        if not raw:
+            return jsonify({"error": "No data available"}), 404
+
+        data = json.loads(raw)
+        now = datetime.now(timezone.utc)
+        heartbeat = datetime.fromisoformat(data["last_heartbeat"])
+        delta = now - heartbeat
+
+        return jsonify({
+            **data,
+            "connected": delta.total_seconds() < 120,
+            "on_solar": (data.get("solar_v") or 0) > 1.0
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/dashboard")
@@ -61,9 +87,8 @@ def api_dashboard():
 
         return jsonify({"level": level, "outflow": outflow})
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/lora")
 def diagnostics_data():
@@ -106,36 +131,14 @@ def diagnostics_data():
         })
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/status")
-def get_status():
-    try: 
-        now = datetime.now(timezone.utc)
-        heartbeat = LATEST_STATUS.get("last_heartbeat", now - timedelta(minutes=10))
-        delta = now - heartbeat
-
-        return jsonify({
-            "battery_v": LATEST_STATUS.get("battery_v"),
-            "solar_v": LATEST_STATUS.get("solar_v"),
-            "signal_dbm": LATEST_STATUS.get("signal_dbm"),
-            "last_heartbeat": heartbeat.isoformat(),
-            "connected": delta.total_seconds() < 120,
-            "on_solar": (LATEST_STATUS.get("solar_v") or 0) > 1.0
-        })
-    except Exception as e:
-        print("Chyba v /api/status:", e)
-        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/weather/meteogram")
 def weather_meteogram():
     try:
         url = "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=49.6265900&lon=18.3016172&altitude=350"
-        headers = {
-            "User-Agent": "MyWeatherApp/1.0 (pond@monitor.cz)"
-        }
+        headers = {"User-Agent": "MyWeatherApp/1.0 (pond@monitor.cz)"}
         response = requests.get(url, headers=headers)
         data = response.json()
 
@@ -162,7 +165,6 @@ def weather_meteogram():
             temperature = details.get("air_temperature", 0)
             pressure = details.get("air_pressure_at_sea_level", 1013)
             cloud = details.get("cloud_area_fraction", 0)
-
             rain = entry.get("data", {}).get("next_1_hours", {}).get("details", {}).get("precipitation_amount", 0)
 
             d = {
@@ -181,9 +183,8 @@ def weather_meteogram():
 
         return jsonify(result)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/weather/daily")
 def daily_forecast():
@@ -196,7 +197,6 @@ def daily_forecast():
     r = requests.get(URL, headers=headers)
     data = r.json()
 
-    # Ukládání agregovaných údajů po dnech
     daily = defaultdict(lambda: {
         "temps": [], "wind_avg": [], "wind_gust": [], "rain": 0.0, "icons": []
     })
@@ -223,7 +223,6 @@ def daily_forecast():
         if icon:
             daily[date]["icons"].append(icon)
 
-    # Výpočet výsledné denní řady
     result = []
     for date, values in sorted(daily.items())[:7]:
         if not values["temps"]:
@@ -238,6 +237,7 @@ def daily_forecast():
         })
 
     return jsonify(result)
+
 
 if __name__ == "__main__":
     app.run(debug=True)

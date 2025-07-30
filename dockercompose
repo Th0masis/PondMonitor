@@ -1,0 +1,48 @@
+version: '3.8'
+env_file: .env
+
+
+services:
+  flask_ui:
+    build:
+      context: .
+      dockerfile: dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./UI:/app
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - PG_HOST=${PG_HOST}
+    depends_on:
+      - redis
+      - timescaledb
+
+  lora_gateway:
+    build:
+      context: .
+      dockerfile: dockerfile.gateway
+    devices:
+    - "${SERIAL_PORT}:${SERIAL_PORT}"
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - PG_HOST=${PG_HOST}
+      - SERIAL_PORT=${SERIAL_PORT}
+    depends_on:
+      - redis
+      - timescaledb
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    environment:
+      - POSTGRES_USER=pond_user
+      - POSTGRES_PASSWORD=secretpassword
+      - POSTGRES_DB=pond_data
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+
+volumes:
+  timescale_data:

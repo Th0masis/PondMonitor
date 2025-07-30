@@ -1,1 +1,8 @@
-/.vscode
+# Python build & cache
+__pycache__/
+*.pyc
+
+# Docker
+*.log
+*.DS_Store
+.vscode/
