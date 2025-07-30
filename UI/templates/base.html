@@ -7,6 +7,23 @@
   <title>{% block title %}Dashboard{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+    Highcharts.addEvent(Highcharts.Chart, 'render', function () {
+      const chart = this;
+      if (!chart.renderer.defs.element.querySelector('#gradient-0')) {
+        chart.renderer
+          .createElement('linearGradient')
+          .attr({ id: 'gradient-0', x1: 0, y1: 0, x2: 0, y2: 1 })
+          .add(chart.renderer.defs)
+          .element.innerHTML = `
+            <stop offset="0" style="stop-color: rgba(0, 200, 150, 0.4)"></stop>
+            <stop offset="1" style="stop-color: rgba(0, 200, 150, 0)"></stop>
+          `;
+      }
+    });
+  });
+</script>
   {% block head %}{% endblock %}
 </head>
 <body class="bg-gray-100 font-sans">
