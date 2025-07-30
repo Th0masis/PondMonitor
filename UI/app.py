@@ -1,9 +1,8 @@
 import requests
-from datetime import datetime
+from datetime import datetime,timezone, timedelta
 import time
 from flask import Flask, render_template, request, jsonify
 import psycopg2
-from datetime import datetime, timedelta
 from collections import defaultdict
 
 app = Flask(__name__)
@@ -20,7 +19,7 @@ LATEST_STATUS = {
     "battery_v": 3.74,
     "solar_v": 5.08,
     "signal_dbm": -98,
-    "last_heartbeat": datetime.now()
+    "last_heartbeat": datetime.now(timezone.utc)
 }
 
 
@@ -113,19 +112,22 @@ def diagnostics_data():
 
 @app.route("/api/status")
 def get_status():
-    now = datetime.utcnow()
-    heartbeat = LATEST_STATUS.get("last_heartbeat", now - timedelta(minutes=10))
-    delta = now - heartbeat
+    try: 
+        now = datetime.now(timezone.utc)
+        heartbeat = LATEST_STATUS.get("last_heartbeat", now - timedelta(minutes=10))
+        delta = now - heartbeat
 
-    return jsonify({
-        "battery_v": LATEST_STATUS.get("battery_v"),
-        "solar_v": LATEST_STATUS.get("solar_v"),
-        "signal_dbm": LATEST_STATUS.get("signal_dbm"),
-        "last_heartbeat": heartbeat.isoformat() + "Z",
-        "connected": delta.total_seconds() < 120,
-        "on_solar": (LATEST_STATUS.get("solar_v") or 0) > 1.0
-    })
-
+        return jsonify({
+            "battery_v": LATEST_STATUS.get("battery_v"),
+            "solar_v": LATEST_STATUS.get("solar_v"),
+            "signal_dbm": LATEST_STATUS.get("signal_dbm"),
+            "last_heartbeat": heartbeat.isoformat(),
+            "connected": delta.total_seconds() < 120,
+            "on_solar": (LATEST_STATUS.get("solar_v") or 0) > 1.0
+        })
+    except Exception as e:
+        print("Chyba v /api/status:", e)
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/weather/meteogram")
 def weather_meteogram():
