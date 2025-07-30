@@ -63,16 +63,24 @@ def api_dashboard():
 @app.route("/api/weather/meteogram")
 def weather_meteogram():
     try:
-        import requests
-        from datetime import datetime
-        import pytz
-
         url = "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=49.6265900&lon=18.3016172&altitude=350"
         headers = {
-            "User-Agent": "MyWeatherApp/1.0 (email@example.com)"
+            "User-Agent": "MyWeatherApp/1.0 (pond@monitor.cz)"
         }
         response = requests.get(url, headers=headers)
         data = response.json()
+
+        def guess_symbol(d):
+            if d['rain'] > 2:
+                return 'rain'
+            elif d['rain'] > 0.2:
+                return 'lightrain'
+            elif d['cloud'] > 80:
+                return 'cloudy'
+            elif d['cloud'] > 40:
+                return 'partlycloudy_day'
+            else:
+                return 'clearsky_day'
 
         result = []
         for entry in data["properties"]["timeseries"]:
@@ -84,22 +92,28 @@ def weather_meteogram():
             wind_direction = details.get("wind_from_direction", 0)
             temperature = details.get("air_temperature", 0)
             pressure = details.get("air_pressure_at_sea_level", 1013)
+            cloud = details.get("cloud_area_fraction", 0)
 
-            rain = 0
-            if "next_1_hours" in entry["data"]:
-                rain = entry["data"]["next_1_hours"]["details"].get("precipitation_amount", 0)
+            rain = entry.get("data", {}).get("next_1_hours", {}).get("details", {}).get("precipitation_amount", 0)
 
-            result.append({
+            d = {
                 "time": time_ts,
                 "temperature": temperature,
                 "rain": rain,
                 "wind": wind,
                 "wind_direction": wind_direction,
-                "pressure": pressure
-            })
+                "pressure": pressure,
+                "cloud": cloud
+            }
+            symbol = entry.get("data", {}).get("next_1_hours", {}).get("summary", {}).get("symbol_code", "")
+            d["symbol_code"] = symbol or guess_symbol(d)
+
+            result.append(d)
 
         return jsonify(result)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/weather/daily")

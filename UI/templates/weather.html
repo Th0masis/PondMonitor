@@ -17,7 +17,6 @@
 {% block head %}
 <script src="https://code.highcharts.com/modules/windbarb.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
-
 <script>
 document.addEventListener('DOMContentLoaded', async function () {
   const container = document.getElementById('meteogram');
@@ -25,109 +24,190 @@ document.addEventListener('DOMContentLoaded', async function () {
   try {
     const res = await fetch('/api/weather/meteogram');
     const data = await res.json();
-    if (data.error || !Array.isArray(data)) {
-      container.innerText = 'Chyba načítání meteogramu.';
-      return;
-    }
 
-    const temperature = data.map(d => [d.time, d.temperature]);
-    const rain = data.map(d => [d.time, d.rain]);
-    const pressure = data.map(d => [d.time, d.pressure]);
-    const windbarbs = data.map(d => ({
+    const now = Date.now();
+    const shortData = data.filter(d => d.time >= now && d.time <= now + 72 * 3600 * 1000);
+
+    const temperature = shortData.map(d => [d.time, d.temperature]);
+    const rain = shortData.map(d => [d.time, d.rain]);
+    const pressure = shortData.map(d => [d.time, d.pressure]);
+
+    const windDir = shortData.map(d => ({
       x: d.time,
-      value: d.wind,
-      direction: d.wind_direction
+      y: 0,
+      marker: {
+        symbol: 'triangle',
+        rotation: d.wind_direction,
+        radius: 6,
+        fillColor: 'blue'
+      }
     }));
-    const weatherIcons = [];
-    let lastSymbol = null;
 
-    data.forEach(d => {
-      if (d.symbol_code !== lastSymbol) {
+    const weatherIcons = [];
+    let lastIcon = null;
+    shortData.forEach(d => {
+      if (d.symbol_code !== lastIcon) {
+        const iconUrl = `https://api.met.no/images/weathericons/png/${d.symbol_code}.png`;
+        console.log('Adding icon:', iconUrl);
         weatherIcons.push({
           x: d.time,
           y: d.temperature + 1.5,
           marker: {
-            symbol: `url(https://api.met.no/images/weathericons/png/${d.symbol_code}.png)`,
-            width: 28,
-            height: 28
+            symbol: `url(${iconUrl})`
+            
           }
         });
-        lastSymbol = d.symbol_code;
+        lastIcon = d.symbol_code;
       }
-    });
+    }
+  );
 
     Highcharts.chart('meteogram', {
       chart: {
         height: 500,
         zoomType: 'x',
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        events: {
+          load: function () {
+            const chart = this;
+            weatherIcons.forEach(icon => {
+              const url = icon.marker.symbol.slice(4, -1); // remove url(...)
+              const x = chart.xAxis[0].toPixels(icon.x) - 13;
+              const y = chart.yAxis[0].toPixels(icon.y) - 13;
+
+              chart.renderer
+                .image(url, x, y, 26, 26)
+                .attr({ zIndex: 10 })
+                .add();
+            });
+          }
+        }
       },
-      title: { text: 'Meteogram' },
-      legend: { enabled: false }, // 
-      xAxis: [{
-        type: 'datetime',
-        tickInterval: 6 * 3600 * 1000,
-        labels: { format: '{value:%H}' }},
-        { // Top X axis
-            linkedTo: 0,
-            type: 'datetime',
-            tickInterval: 24 * 3600 * 1000,
-            labels: {
-                format: '{value:<span style="font-size: 12px; font-weight: ' +
-                    'bold">%a</span> %b %e}',
-                align: 'left',
-                x: 3,
-                y: 8
+      title: { text: 'Meteogram (72 hodin)' },
+      legend: { enabled: false },
+      plotOptions: {
+        series: {
+          marker: { enabled: false }
+        }
+      },
+      xAxis: [
+        {
+          type: 'datetime',
+          tickInterval: 6 * 3600 * 1000,
+          labels: { format: '{value:%H}' },
+          opposite: false,
+          gridLineWidth: 1,
+          gridLineColor: '#ddd'
+        },
+        {
+          type: 'datetime',
+          tickInterval: 24 * 3600 * 1000,
+          labels: {
+            format: '{value:%a %e}',
+            style: { fontWeight: 'bold' }
+          },
+          opposite: true,
+          linkedTo: 0,
+          gridLineWidth: 1,
+          gridLineColor: '#ddd'
+        }
+      ],
+      yAxis: [{  //temperature
+          title: { text: null },
+          labels: {
+            format: '{value}°',
+            style: { fontSize: '10px' },
+            x: -3
+          },
+          plotLines: [{ //zero plane
+            value: 0,
+            color: 'var(--highcharts-neutral-color-20, #bbb)',
+            width: 1,
+            zIndex: 2
+          }],
+          maxPadding: 0.3,
+          minRange: 8,
+          tickInterval: 1,
+          gridLineColor: 'rgba(128, 128, 128, 0.1)'
+        },{//percipitation
+          title: { text: null },
+          labels: { enabled: false },
+          gridLineWidth: 0,
+          tickLength: 0,
+          minRange: 10,
+          min: 0
+        },{ //air preasure
+          allowDecimals: false,
+          title: {
+            text: 'hPa',
+            offset: 0,
+            align: 'high',
+            rotation: 0,
+            style: {
+              fontSize: '12px',
+              color: Highcharts.getOptions().colors[2]
             },
-            opposite: true,
-            tickLength: 20,
-            gridLineWidth: 1
-        
-      }],
-      yAxis: [{
-        title: { text: 'Teplota (°C)' },
-      }, {
-        title: { text: 'Tlak (hPa)' },
-        opposite: true
-      }],
+            textAlign: 'left',
+            x: 3
+          },
+          labels: {
+            style: {
+              fontSize: '10px',
+              color: Highcharts.getOptions().colors[2]
+            },
+            y: 2,
+            x: 3
+          },
+          gridLineWidth: 0,
+          opposite: true,
+          showLastLabel: false
+        }
+      ],
       tooltip: {
         shared: true,
         xDateFormat: '%e. %b %H:%M'
       },
-      series: [{ 
+      series: [
+        {
           name: 'Teplota',
           type: 'spline',
           data: temperature,
           yAxis: 0,
-          color: '#f45b5b'
-        },{
+          color: '#f45b5b',
+          tooltip: { valueSuffix: ' °C' }
+        },
+        {
           name: 'Srážky',
           type: 'column',
           data: rain,
-          pointWidth: 6,
-          yAxis: 0,
-          color: '#7cb5ec'
-      },{
-        name: 'Tlak vzduchu',
-        type: 'spline',
-        data: pressure,
-        yAxis: 1,
-        dashStyle:'shortdot',
-        color: '#66cc66'
-      },{
-        name: 'Vítr',
-        type: 'column',
-        data: data.map(d => [d.time, d.wind]),
-        
-        color: '#90caf9',
-        pointWidth: 8,
-        tooltip: { valueSuffix: ' m/s' }
-      },{
-        name: 'Ikony',
-        type: 'scatter',
-        data: weatherIcons,
-        tooltip: { enabled: false },
-        enableMouseTracking: false }
+          yAxis: 1,
+          color: '#7cb5ec',
+          pointWidth: 2,
+          dataLabels: {
+            enabled: true,
+            formatter: function () { return this.y > 0 ? this.y.toFixed(1) : null; },
+            style: { color: '#333', fontSize: '10px', textOutline: 'none' }
+          },
+          tooltip: { valueSuffix: ' mm' }
+        },
+        {
+          name: 'Tlak vzduchu',
+          type: 'spline',
+          data: pressure,
+          yAxis: 2,
+          color: '#4CAF50',
+          dashStyle: 'Dash',
+          lineWidth: 1,
+          tooltip: { valueSuffix: ' hPa' }
+        },
+        {
+          name: 'Směr větru',
+          type: 'scatter',
+          data: windDir,
+          yAxis: 1,
+          tooltip: { enabled: false },
+          enableMouseTracking: false
+        }
       ]
     });
   } catch (err) {
@@ -135,13 +215,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     container.innerText = 'Chyba načítání meteogramu.';
   }
 
-
   try {
     const response = await fetch('/api/weather/daily');
     const forecastData = await response.json();
     const cards = document.getElementById('forecastCards');
     cards.innerHTML = '';
-
     forecastData.forEach(day => {
       const card = document.createElement('div');
       card.className = 'bg-white p-4 rounded shadow text-center';
