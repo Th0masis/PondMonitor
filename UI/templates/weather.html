@@ -63,6 +63,25 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
   );
 
+    function weatherIconsRedraw(chart, weatherIcons) {
+      // Smazat staré ikony (volitelně si můžeš uložit .image objekty do pole a .destroy())
+      chart.weatherImages?.forEach(img => img.destroy());
+      chart.weatherImages = [];
+
+      weatherIcons.forEach(icon => {
+        const url = icon.marker.symbol.slice(4, -1);
+        const x = chart.xAxis[0].toPixels(icon.x) - 13;
+        const y = chart.yAxis[0].toPixels(icon.y) - 13;
+
+        const img = chart.renderer
+          .image(url, x, y, 26, 26)
+          .attr({ zIndex: 1 })
+          .add();
+
+        chart.weatherImages.push(img);
+      });
+    }
+
     Highcharts.chart('meteogram', {
       chart: {
         height: 500,
@@ -71,17 +90,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         backgroundColor: '#ffffff',
         events: {
           load: function () {
-            const chart = this;
-            weatherIcons.forEach(icon => {
-              const url = icon.marker.symbol.slice(4, -1); // remove url(...)
-              const x = chart.xAxis[0].toPixels(icon.x) - 13;
-              const y = chart.yAxis[0].toPixels(icon.y) - 13;
-
-              chart.renderer
-                .image(url, x, y, 26, 26)
-                .attr({ zIndex: 10 })
-                .add();
-            });
+            weatherIconsRedraw(this, weatherIcons);
+          },
+          redraw: function () {
+            weatherIconsRedraw(this, weatherIcons);
           }
         }
       },
