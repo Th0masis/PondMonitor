@@ -188,11 +188,30 @@ document.addEventListener('DOMContentLoaded', async function () {
       ],
       tooltip: {
         shared: true,
-        headerFormat:
-                '<small>{point.x:%A, %b %e, %H:%M} - ' +
-                '{point.point.to:%H:%M}</small><br>' +
-                '<b>{point.point.symbolName}</b><br>'
-      },
+        useHTML: true,
+        formatter: function () {
+          const p = this.points?.[0]?.point;
+          const x = this.x;
+
+          const dateStr = Highcharts.dateFormat('%A, %e. %B %Y', x);    // např. pondělí, 29. července 2025
+          const from = Highcharts.dateFormat('%H:%M', x);
+          const to = Highcharts.dateFormat('%H:%M', p.to || x + 3600000);
+          const icon = p.symbolName ? `🌤 ${p.symbolName}` : '';
+
+          let s = `<small><b>${dateStr}</b><br>${from} – ${to}</small><br><b>${icon}</b><hr style="margin:2px 0"/>`;
+
+          this.points.forEach(pt => {
+            s += `<span style="color:${pt.color}">●</span> ${pt.series.name}: <b>${pt.y}`;
+            if (pt.series.tooltipOptions.valueSuffix) {
+              s += pt.series.tooltipOptions.valueSuffix;
+            }
+            s += `</b><br>`;
+          });
+
+          return s;
+        }
+      }
+      ,
       series: [
         {
           name: 'Teplota',
