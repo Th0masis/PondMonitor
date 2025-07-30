@@ -19,7 +19,7 @@
     <button data-hours="1" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">1h</button>
     <button data-hours="6" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">6h</button>
     <button data-hours="12" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">12h</button>
-    <button data-hours="24" class="range-btn px-3 py-1 rounded bg-blue-500 text-white">24h</button>
+    <button data-hours="24" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">24h</button>
     <button data-hours="72" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">3d</button>
     <button data-hours="168" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">7d</button>
   </div>
@@ -73,6 +73,7 @@
       chartLevel = Highcharts.chart('chartLevel', {
       chart: { type: 'area' },
       title: { text: null },
+      legend: {enabled: false},
       xAxis: {
         type: 'datetime',
         labels: { format: '{value:%e. %b %H:%M}' }
@@ -98,6 +99,7 @@
       chartOutflow = Highcharts.chart('chartOutflow', {
       chart: { type: 'area' },
       title: { text: null },
+      legend: {enabled: false},
       xAxis: {
         type: 'datetime',
         labels: { format: '{value:%e. %b %H:%M}' }
