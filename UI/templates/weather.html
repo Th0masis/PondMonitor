@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mb-6">
   <h2 class="text-xl font-semibold mb-2">Krátkodobá předpověď</h2>
-  <div id="meteogram" style="height: 500px;"></div>
+  <div id="meteogram" class="bg-white p-4 rounded shadow text-center"></div>
 </div>
 
 <div class="mt-10">
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const data = await res.json();
 
     const now = Date.now();
-    const shortData = data.filter(d => d.time >= now && d.time <= now + 72 * 3600 * 1000);
+    const shortData = data.filter(d => d.time >= now && d.time <= now + 48 * 3600 * 1000);
 
     const temperature = shortData.map(d => [d.time, d.temperature]);
     const rain = shortData.map(d => [d.time, d.rain]);
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     Highcharts.chart('meteogram', {
       chart: {
-        height: 500,
+        spacingTop:10,
         zoomType: 'x',
         backgroundColor: '#ffffff',
         events: {
@@ -83,7 +83,15 @@ document.addEventListener('DOMContentLoaded', async function () {
           }
         }
       },
-      title: { text: 'Meteogram (72 hodin)' },
+      exporting:{enabled:false},
+      title: { 
+        text: 'Meteo for Palkovice, Czechia',
+        align: 'left',
+        style: {
+          whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis',
+        }
+      },
       legend: { enabled: false },
       plotOptions: {
         series: {
@@ -94,6 +102,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         {
           type: 'datetime',
           tickInterval: 6 * 3600 * 1000,
+          minorTickInterval: 36e5,
           labels: { format: '{value:%H}' },
           opposite: false,
           gridLineWidth: 1,
@@ -126,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             zIndex: 2
           }],
           maxPadding: 0.3,
-          minRange: 8,
+          minRange: 10,
           tickInterval: 1,
           gridLineColor: 'rgba(128, 128, 128, 0.1)'
         },{//percipitation
@@ -165,7 +174,10 @@ document.addEventListener('DOMContentLoaded', async function () {
       ],
       tooltip: {
         shared: true,
-        xDateFormat: '%e. %b %H:%M'
+        headerFormat:
+                '<small>{point.x:%A, %b %e, %H:%M} - ' +
+                '{point.point.to:%H:%M}</small><br>' +
+                '<b>{point.point.symbolName}</b><br>'
       },
       series: [
         {
@@ -182,7 +194,9 @@ document.addEventListener('DOMContentLoaded', async function () {
           data: rain,
           yAxis: 1,
           color: '#7cb5ec',
-          pointWidth: 2,
+          groupPadding: 0,
+          pointPadding: 0.05,
+          grouping: false,
           dataLabels: {
             enabled: true,
             formatter: function () { return this.y > 0 ? this.y.toFixed(1) : null; },
