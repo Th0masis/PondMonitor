@@ -135,8 +135,7 @@
     const end = document.getElementById('endDate').value;
 
     document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
-    document.querySelector(`.range-btn[data-hours="${hours}"]`)?.classList.add('bg-blue-500', 'text-white');
-
+    
 
     if (start && end) {
       loadDashboard(new Date(start).toISOString(), new Date(end).toISOString());
