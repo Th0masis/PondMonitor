@@ -3,44 +3,212 @@
 {% block title %}Diagnostics{% endblock %}
 
 {% block content %}
-  <h2 class="text-2xl font-bold text-gray-800 mb-6">Diagnostics</h2>
+<h2 class="text-2xl font-bold text-gray-800 mb-6">Diagnostics</h2>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h3 class="font-semibold mb-2">Temperature</h3>
-      <div id="chart2"></div>
-    </div>
+<!-- Live Status Cards -->
+<h3 class="text-xl font-semibold mb-6">Live Station Status</h3>
+<div id="statusCards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-10"></div>
 
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h3 class="font-semibold mb-2">Battery Voltage</h3>
-      <div id="chart3"></div>
-    </div>
+<!-- Charts -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div class="bg-white p-4 rounded-lg shadow">
+    <h3 class="font-semibold mb-2">Teplota (°C)</h3>
+    <div id="chart2"></div>
   </div>
+
+  <div class="bg-white p-4 rounded-lg shadow">
+    <h3 class="font-semibold mb-2">Úroveň baterie (%)</h3>
+    <div id="chart3"></div>
+  </div>
+</div>
 {% endblock %}
 
 {% block head %}
 <script>
-  async function loadDiagnostics() {
-    const res = await fetch(`/api/data?hours=24`);
-    const data = await res.json();
+function batteryPercent(v) {
+  return Math.round(Math.min(Math.max((v - 3.0) / 1.2 * 100, 0), 100));
+}
 
-    Highcharts.chart('chart2', {
-      chart: { type: 'line' },
-      title: { text: 'Temperature (°C)' },
-      xAxis: { type: 'datetime' },
-      yAxis: { title: { text: '°C' } },
-      series: [{ name: 'Temperature', data: data.temperature }]
-    });
+function generateBatteryChart(voltageData, raw) {
+  const batterySeries = voltageData.map(([ts, v]) => [ts, batteryPercent(v)]);
 
-    Highcharts.chart('chart3', {
-      chart: { type: 'line' },
-      title: { text: 'Battery Voltage (V)' },
-      xAxis: { type: 'datetime' },
-      yAxis: { title: { text: 'V' } },
-      series: [{ name: 'Voltage', data: data.battery_voltage }]
+  const zones = [];
+  let inCharge = false;
+  let chargeStart = null;
+
+  if (raw?.solar_voltage?.length) {
+    raw.solar_voltage.forEach(([ts, solar]) => {
+      const isCharging = solar > 1.0;
+      if (isCharging && !inCharge) {
+        inCharge = true;
+        chargeStart = ts;
+      } else if (!isCharging && inCharge) {
+        inCharge = false;
+        zones.push({ color: 'rgba(0,255,0,0.1)', from: chargeStart, to: ts });
+      }
     });
+    if (inCharge && chargeStart) {
+      zones.push({ color: 'rgba(0,255,0,0.1)', from: chargeStart, to: Date.now() });
+    }
   }
 
+  Highcharts.chart('chart3', {
+    chart: { type: 'column', backgroundColor: '#fff' },
+    title: { text: null },
+    xAxis: {
+      type: 'datetime',
+      labels: { format: '{value:%H:%M}' },
+      plotBands: zones,
+      lineColor: '#ccc',
+      tickLength: 0
+    },
+    yAxis: {
+      max: 100,
+      min: 0,
+      title: { text: null },
+      labels: { format: '{value} %' },
+      gridLineDashStyle: 'Dot'
+    },
+    tooltip: {
+      formatter: function () {
+        const volt = raw?.battery_voltage.find(p => p[0] === this.x)?.[1];
+        return `<b>${this.y}%</b><br>${volt?.toFixed(2)} V<br>${Highcharts.dateFormat('%e. %b %H:%M', this.x)}`;
+      }
+    },
+    legend: { enabled: false },
+    plotOptions: {
+      column: {
+        pointPadding: 0.1,
+        borderWidth: 0,
+        zones: [
+          { value: 20, color: '#d9534f' },
+          { value: 40, color: '#f0ad4e' },
+          { color: '#5cb85c' }
+        ]
+      }
+    },
+    series: [{ name: 'Baterie (%)', data: batterySeries }]
+  });
+}
+
+async function loadDiagnostics() {
+  const res = await fetch(`/api/lora?hours=24`);
+  const data = await res.json();
+
+  Highcharts.chart('chart2', {
+    chart: { type: 'spline', backgroundColor: '#fff' },
+    title: { text: null },
+    xAxis: {
+      type: 'datetime',
+      labels: { format: '{value:%H:%M}' },
+      lineColor: '#ccc'
+    },
+    yAxis: {
+      title: { text: null },
+      labels: { format: '{value} \u00b0C' },
+      gridLineColor: '#eee'
+    },
+    tooltip: {
+      shared: true,
+      valueSuffix: ' \u00b0C',
+      xDateFormat: '%A, %e. %B %H:%M'
+    },
+    legend: { enabled: false },
+    plotOptions: {
+      spline: {
+        color: '#007AFF',
+        lineWidth: 2,
+        marker: { enabled: false }
+      }
+    },
+    series: [{ name: 'Teplota', data: data.temperature }]
+  });
+
+  generateBatteryChart(data.battery_voltage, data);
+}
+
+async function loadStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    const container = document.getElementById('statusCards');
+    container.innerHTML = '';
+    container.className = 'flex flex-col md:flex-row justify-between gap-4 mb-10';
+
+    const batteryPct = batteryPercent(data.battery_v);
+    const batteryWarning = data.battery_v < 3.5 ? '<span class="text-yellow-500">⚠️</span> ' : '';
+
+    const connectedIcon = data.connected
+      ? `<svg class="w-5 h-5 inline-block text-green-500 mr-1" viewBox="0 0 24 24" fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+            <circle cx="12" cy="12" r="4" fill="currentColor"/>
+        </svg> Online`
+      : `<svg class="w-5 h-5 inline-block text-red-500 mr-1" viewBox="0 0 24 24" fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+            <path d="M9 9L15 15M15 9L9 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg> Offline`;
+
+    const powerSource = data.on_solar
+      ? `FV <svg class="w-5 h-5 text-yellow-500 inline-block mr-1" xmlns="http://www.w3.org/2000/svg" fill="none"
+          viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round"
+          stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`
+      : `Baterie <svg class="w-5 h-5 text-gray-500 inline-block mr-1" xmlns="http://www.w3.org/2000/svg" fill="none"
+          viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round"
+          stroke-width="2" d="M7 16V8m5 8V8m5 8V8m1-4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2z"/></svg>`;
+
+    // ⚡ Energie karta
+    const energyCard = document.createElement('div');
+    energyCard.className = 'bg-white p-4 rounded-lg shadow';
+    energyCard.innerHTML = `
+      <div class="text-sm text-gray-500 mb-1">Napájení</div>
+      <div class="text-xl font-bold text-gray-800 mb-1">${batteryWarning}${batteryPct}%</div>
+      <div class="text-sm text-gray-700">Napětí baterie: ${data.battery_v.toFixed(2)} V</div>
+      <div class="text-sm text-gray-700">Solární vstup: ${data.solar_v.toFixed(2)} V</div>
+      <div class="text-sm text-gray-700">Zdroj: ${powerSource}</div>
+    `;
+
+    // 📡 Připojení karta
+    const connCard = document.createElement('div');
+    connCard.className = 'bg-white p-4 rounded-lg shadow';
+    connCard.innerHTML = `
+      <div class="text-sm text-gray-500 mb-1">Připojení</div>
+      <div class="text-xl font-bold text-gray-800 mb-1">${connectedIcon}</div>
+      <div class="text-sm text-gray-700">Síla signálu: ${data.signal_dbm} dBm</div>
+    `;
+
+    // 🕒 Poslední přenos
+    const lastCard = document.createElement('div');
+    lastCard.className = 'bg-white p-4 rounded-lg shadow text-center';
+    lastCard.innerHTML = `
+      <div class="text-sm text-gray-500">Poslední přenos</div>
+      <div class="text-xl font-bold text-gray-800">${new Date(data.last_heartbeat).toLocaleString('cs-CZ')}</div>
+    `;
+
+    // 👉 Vložit do layoutu: vlevo (energy + conn), vpravo (last)
+    const leftGroup = document.createElement('div');
+    leftGroup.className = 'flex flex-col md:flex-row gap-4';
+    leftGroup.appendChild(energyCard);
+    leftGroup.appendChild(connCard);
+
+    const rightCard = document.createElement('div');
+    rightCard.className = 'self-start md:self-end';
+    rightCard.appendChild(lastCard);
+
+    container.appendChild(leftGroup);
+    container.appendChild(rightCard);
+
+
+  } catch (err) {
+    console.error('Chyba při načítání statusu:', err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
   loadDiagnostics();
+  loadStatus();
+  setInterval(loadStatus, 30000);
+});
 </script>
 {% endblock %}

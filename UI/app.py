@@ -16,6 +16,14 @@ DB_CONFIG = {
     "password": "secretpassword"
 }
 
+LATEST_STATUS = {
+    "battery_v": 3.74,
+    "solar_v": 5.08,
+    "signal_dbm": -98,
+    "last_heartbeat": datetime.now()
+}
+
+
 @app.route("/")
 def dashboard():
     return render_template("dashboard.html")
@@ -58,6 +66,65 @@ def api_dashboard():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/lora")
+def diagnostics_data():
+    hours = int(request.args.get("hours", 24))
+    start_time = datetime.now() - timedelta(hours=hours)
+
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                extract(epoch from timestamp) * 1000 AS ts,
+                temperature_c,
+                battery_v,
+                solar_v
+            FROM station_metrics
+            WHERE timestamp >= %s
+            ORDER BY timestamp ASC
+        """, (start_time,))
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        temperature = []
+        battery_voltage = []
+        solar_voltage = []
+
+        for ts, temp, batt, solar in rows:
+            if temp is not None:
+                temperature.append([int(ts), temp])
+            if batt is not None:
+                battery_voltage.append([int(ts), batt])
+            if solar is not None:
+                solar_voltage.append([int(ts), solar])
+
+        return jsonify({
+            "temperature": temperature,
+            "battery_voltage": battery_voltage,
+            "solar_voltage": solar_voltage
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/status")
+def get_status():
+    now = datetime.utcnow()
+    heartbeat = LATEST_STATUS.get("last_heartbeat", now - timedelta(minutes=10))
+    delta = now - heartbeat
+
+    return jsonify({
+        "battery_v": LATEST_STATUS.get("battery_v"),
+        "solar_v": LATEST_STATUS.get("solar_v"),
+        "signal_dbm": LATEST_STATUS.get("signal_dbm"),
+        "last_heartbeat": heartbeat.isoformat() + "Z",
+        "connected": delta.total_seconds() < 120,
+        "on_solar": (LATEST_STATUS.get("solar_v") or 0) > 1.0
+    })
 
 
 @app.route("/api/weather/meteogram")
