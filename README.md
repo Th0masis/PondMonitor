@@ -205,7 +205,10 @@ echo 'INSERT-INSTALL-COMMAND-HERE'
 
 Run the project with:
 
-echo 'INSERT-RUN-COMMAND-HERE'
+    ```sh
+    docker compose build --no-cache
+    docker compose up -d
+    ```
 
 ### 🧪 Testing
 
