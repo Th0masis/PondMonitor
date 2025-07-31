@@ -188,13 +188,13 @@ Build PondMonitor from the source and install dependencies:
 1. **Clone the repository:**
 
     ```sh
-    ❯ git clone https://github.com/Th0masis/PondMonitor
+    git clone https://github.com/Th0masis/PondMonitor
     ```
 
 2. **Navigate to the project directory:**
 
     ```sh
-    ❯ cd PondMonitor
+    cd PondMonitor
     ```
 
 3. **Install the dependencies:**
@@ -205,10 +205,10 @@ echo 'INSERT-INSTALL-COMMAND-HERE'
 
 Run the project with:
 
-    ```sh
-    docker compose build --no-cache
-    docker compose up -d
-    ```
+```sh
+docker compose build --no-cache
+docker compose up -d
+```
 
 ### 🧪 Testing
 
