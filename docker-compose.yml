@@ -1,9 +1,9 @@
 version: '3.8'
-env_file: .env
-
 
 services:
   flask_ui:
+    env_file:
+      .env
     build:
       context: .
       dockerfile: dockerfile
@@ -22,6 +22,8 @@ services:
     build:
       context: .
       dockerfile: dockerfile.gateway
+    env_file:
+      .env
     devices:
     - "${SERIAL_PORT}:${SERIAL_PORT}"
     environment:
@@ -34,6 +36,8 @@ services:
 
   timescaledb:
     image: timescale/timescaledb:latest-pg14
+    env_file:
+      .env
     environment:
       - POSTGRES_USER=pond_user
       - POSTGRES_PASSWORD=secretpassword
