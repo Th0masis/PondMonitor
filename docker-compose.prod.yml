@@ -1,0 +1,10 @@
+version: '3.8'
+
+# Production override - adds USB device mounting
+services:
+  lora_gateway:
+    devices:
+      - "${SERIAL_PORT:-/dev/ttyUSB0}:${SERIAL_PORT:-/dev/ttyUSB0}"
+    environment:
+      - TESTING_MODE=false
+      - SIMULATE_DATA=false

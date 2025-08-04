@@ -1,214 +1,805 @@
 {% extends "base.html" %}
 {% set active_page = 'diagnostics' %}
-{% block title %}Diagnostics{% endblock %}
+{% block title %}Diagnostika - PondMonitor{% endblock %}
+{% block page_title %}Diagnostika{% endblock %}
+{% block page_subtitle %}Stav systému a technické informace{% endblock %}
 
 {% block content %}
-<h2 class="text-2xl font-bold text-gray-800 mb-6">Diagnostics</h2>
+<!-- System Health Overview -->
+<div style="margin-bottom: 2rem;">
+  <div class="card">
+    <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+      <h3 class="chart-title">Celkový stav systému</h3>
+      <div id="systemHealth" style="display: flex; align-items: center; padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; background-color: var(--bg-tertiary);">
+        <div style="width: 0.5rem; height: 0.5rem; border-radius: 50%; margin-right: 0.5rem; background-color: #9ca3af;"></div>
+        <span>Kontrola...</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="healthMetrics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1.5rem;">
+        <!-- Health metrics will be populated here -->
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Live Status Cards -->
-<h3 class="text-xl font-semibold mb-6">Live Station Status</h3>
-<div id="statusCards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-10"></div>
+<div style="margin-bottom: 2rem;">
+  <h3 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;" class="text-primary">Stav stanice v reálném čase</h3>
+  <div id="statusCards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;"></div>
+</div>
 
-<!-- Charts -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <div class="bg-white p-4 rounded-lg shadow">
-    <h3 class="font-semibold mb-2">Teplota (°C)</h3>
-    <div id="chart2"></div>
+<!-- Detailed System Information -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+  <!-- Hardware Info -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="chart-title">Informace o hardware</h3>
+    </div>
+    <div class="card-body">
+      <div id="hardwareInfo" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <!-- Hardware info will be populated here -->
+      </div>
+    </div>
   </div>
 
-  <div class="bg-white p-4 rounded-lg shadow">
-    <h3 class="font-semibold mb-2">Úroveň baterie (%)</h3>
-    <div id="chart3"></div>
+  <!-- Network & Communication -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="chart-title">Síť a komunikace</h3>
+    </div>
+    <div class="card-body">
+      <div id="networkInfo" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <!-- Network info will be populated here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Time Range Selector -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
+      <div>
+        <h3 class="chart-title">Historické údaje</h3>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-secondary);">
+          Vyberte časové období pro zobrazení diagnostických grafů
+        </p>
+      </div>
+      <div class="time-range-controls">
+        <button data-hours="1" class="btn btn-secondary diag-range-btn">1h</button>
+        <button data-hours="6" class="btn btn-secondary diag-range-btn">6h</button>
+        <button data-hours="12" class="btn btn-secondary diag-range-btn">12h</button>
+        <button data-hours="24" class="btn btn-primary diag-range-btn">24h</button>
+        <button data-hours="72" class="btn btn-secondary diag-range-btn">3d</button>
+        <button data-hours="168" class="btn btn-secondary diag-range-btn">7d</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Section with Visual Connection -->
+  <div class="charts-section">
+    <div class="charts-grid">
+      <!-- Temperature Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">Teplota čidla</h3>
+          <div class="chart-meta">
+            <span id="tempDataPoints">0 bodů</span>
+          </div>
+        </div>
+        <div id="temperatureChart" style="height: 320px;"></div>
+      </div>
+
+      <!-- Battery Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">Stav baterie</h3>
+          <div class="chart-meta">
+            <span id="batteryDataPoints">0 bodů</span>
+          </div>
+        </div>
+        <div id="batteryChart" style="height: 320px;"></div>
+      </div>
+
+      <!-- Signal Strength Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">Síla signálu</h3>
+          <div class="chart-meta">
+            <span id="signalDataPoints">0 bodů</span>
+          </div>
+        </div>
+        <div id="signalChart" style="height: 320px;"></div>
+      </div>
+
+      <!-- Solar Power Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3 class="chart-title">Solární napájení</h3>
+          <div class="chart-meta">
+            <span id="solarDataPoints">0 bodů</span>
+          </div>
+        </div>
+        <div id="solarChart" style="height: 320px;"></div>
+      </div>
+      </div>
+  </div>
+</div>
+  <!-- System Logs -->
+  <div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+      <h3 class="chart-title">Systémové události</h3>
+      <button onclick="refreshLogs()" class="btn btn-primary">
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
+        </svg>
+        Obnovit
+      </button>
+    </div>
+    <div class="card-body">
+      <div id="systemLogs" style="max-height: 16rem; overflow-y: auto; background-color: var(--bg-tertiary); border-radius: 8px; padding: 1rem;">
+        <div class="text-muted" style="font-size: 0.875rem;">Načítání událostí...</div>
+      </div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="chart-title">Akce</h3>
+  </div>
+  <div class="card-body">
+    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+      <button onclick="testConnection()" class="btn btn-success">
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+        </svg>
+        Test připojení
+      </button>
+      <button onclick="exportDiagnostics()" class="btn btn-primary">
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+        </svg>
+        Export diagnostiky
+      </button>
+      <button onclick="resetDevice()" class="btn btn-danger">
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
+        </svg>
+        Restart zařízení
+      </button>
+    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block head %}
 <script>
+let tempChart = null;
+let batteryChart = null;
+let signalChart = null;
+let solarChart = null;
+let currentHours = 24;
+
+// Chart configuration
+const diagnosticChartOptions = {
+  chart: { 
+    type: 'spline',
+    backgroundColor: 'transparent',
+    style: { fontFamily: 'inherit' }
+  },
+  title: { text: null },
+  legend: { enabled: false },
+  exporting: { enabled: false },
+  xAxis: {
+    type: 'datetime',
+    labels: { 
+      format: '{value:%e. %b %H:%M}',
+      style: { color: 'var(--chart-text)' }
+    },
+    gridLineColor: 'var(--chart-grid)',
+    lineColor: 'var(--chart-grid)',
+    tickColor: 'var(--chart-grid)'
+  },
+  yAxis: { 
+    title: { text: null },
+    labels: { style: { color: 'var(--chart-text)' } },
+    gridLineColor: 'var(--chart-grid)'
+  },
+  tooltip: {
+    backgroundColor: 'var(--chart-tooltip-bg)',
+    borderColor: 'var(--chart-tooltip-border)',
+    style: { color: 'var(--chart-text)' },
+    xDateFormat: '%A, %e. %B %Y %H:%M',
+    valueDecimals: 2,
+    shared: true
+  },
+  plotOptions: {
+    spline: {
+      marker: { enabled: false },
+      lineWidth: 2
+    }
+  }
+};
+
 function batteryPercent(v) {
-  return Math.round(Math.min(Math.max((v - 3.0) / 1.2 * 100, 0), 100));
+  return Math.round(Math.max(Math.min((v - 3.0) / 1.2 * 100, 0), 100));
 }
 
-function generateBatteryChart(voltageData, raw) {
+function getSignalQuality(dbm) {
+  if (dbm >= -70) return { quality: 'Výborný', color: 'var(--color-green)', icon: '📶' };
+  if (dbm >= -85) return { quality: 'Dobrý', color: 'var(--color-blue)', icon: '📶' };
+  if (dbm >= -100) return { quality: 'Slabý', color: 'var(--color-yellow)', icon: '📶' };
+  return { quality: 'Velmi slabý', color: 'var(--color-red)', icon: '📵' };
+}
+
+async function loadDiagnostics(hours = 24) {
+  try {
+    const data = await PondUtils.apiRequest(`/api/lora?hours=${hours}`);
+    
+    // Update data point counts
+    document.getElementById('tempDataPoints').textContent = `${data.temperature?.length || 0} bodů`;
+    document.getElementById('batteryDataPoints').textContent = `${data.battery_voltage?.length || 0} bodů`;
+    document.getElementById('signalDataPoints').textContent = `${data.signal_strength?.length || 0} bodů`; // Fixed: Use signal_strength
+    document.getElementById('solarDataPoints').textContent = `${data.solar_voltage?.length || 0} bodů`;
+
+    // Update charts
+    updateTemperatureChart(data.temperature || []);
+    updateBatteryChart(data.battery_voltage || [], data);
+    updateSignalChart(data.signal_strength || []); // Fixed: Use signal_strength
+    updateSolarChart(data.solar_voltage || []);
+
+    PondUtils.updateLastUpdateTime();
+  } catch (error) {
+    console.error('Diagnostics loading error:', error);
+  }
+}
+
+function updateTemperatureChart(data) {
+  if (!tempChart) {
+    tempChart = Highcharts.chart('temperatureChart', {
+      ...diagnosticChartOptions,
+      yAxis: { 
+        ...diagnosticChartOptions.yAxis,
+        labels: { 
+          ...diagnosticChartOptions.yAxis.labels,
+          format: '{value}°C' 
+        }
+      },
+      tooltip: { 
+        ...diagnosticChartOptions.tooltip,
+        valueSuffix: ' °C'
+      },
+      series: [{
+        name: 'Teplota',
+        data: data,
+        color: '#f59e0b'
+      }]
+    });
+  } else {
+    tempChart.series[0].setData(data, true);
+  }
+}
+
+function updateBatteryChart(voltageData, rawData) {
   const batterySeries = voltageData.map(([ts, v]) => [ts, batteryPercent(v)]);
-
+  
+  // Create charging zones
   const zones = [];
-  let inCharge = false;
-  let chargeStart = null;
+  if (rawData?.solar_voltage?.length) {
+    let inCharge = false;
+    let chargeStart = null;
 
-  if (raw?.solar_voltage?.length) {
-    raw.solar_voltage.forEach(([ts, solar]) => {
+    rawData.solar_voltage.forEach(([ts, solar]) => {
       const isCharging = solar > 1.0;
       if (isCharging && !inCharge) {
         inCharge = true;
         chargeStart = ts;
       } else if (!isCharging && inCharge) {
         inCharge = false;
-        zones.push({ color: 'rgba(0,255,0,0.1)', from: chargeStart, to: ts });
+        zones.push({ color: 'rgba(34, 197, 94, 0.1)', from: chargeStart, to: ts });
       }
     });
     if (inCharge && chargeStart) {
-      zones.push({ color: 'rgba(0,255,0,0.1)', from: chargeStart, to: Date.now() });
+      zones.push({ color: 'rgba(34, 197, 94, 0.1)', from: chargeStart, to: Date.now() });
     }
   }
 
-  Highcharts.chart('chart3', {
-    chart: { type: 'column', backgroundColor: '#fff' },
-    title: { text: null },
-    xAxis: {
-      type: 'datetime',
-      labels: { format: '{value:%H:%M}' },
-      plotBands: zones,
-      lineColor: '#ccc',
-      tickLength: 0
-    },
-    yAxis: {
-      max: 100,
-      min: 0,
-      title: { text: null },
-      labels: { format: '{value} %' },
-      gridLineDashStyle: 'Dot'
-    },
-    tooltip: {
-      formatter: function () {
-        const volt = raw?.battery_voltage.find(p => p[0] === this.x)?.[1];
-        return `<b>${this.y}%</b><br>${volt?.toFixed(2)} V<br>${Highcharts.dateFormat('%e. %b %H:%M', this.x)}`;
-      }
-    },
-    legend: { enabled: false },
-    plotOptions: {
-      column: {
-        pointPadding: 0.1,
-        borderWidth: 0,
-        zones: [
-          { value: 20, color: '#d9534f' },
-          { value: 40, color: '#f0ad4e' },
-          { color: '#5cb85c' }
-        ]
-      }
-    },
-    series: [{ name: 'Baterie (%)', data: batterySeries }]
-  });
+  if (!batteryChart) {
+    batteryChart = Highcharts.chart('batteryChart', {
+      ...diagnosticChartOptions,
+      chart: { ...diagnosticChartOptions.chart, type: 'column' },
+      xAxis: {
+        ...diagnosticChartOptions.xAxis,
+        plotBands: zones
+      },
+      yAxis: { 
+        ...diagnosticChartOptions.yAxis,
+        max: 100,
+        min: 0,
+        labels: { 
+          ...diagnosticChartOptions.yAxis.labels,
+          format: '{value}%' 
+        }
+      },
+      tooltip: { 
+        ...diagnosticChartOptions.tooltip,
+        formatter: function () {
+          const volt = rawData?.battery_voltage.find(p => p[0] === this.x)?.[1];
+          return `<b>${this.y}%</b><br>${volt?.toFixed(2)} V<br>${Highcharts.dateFormat('%e. %b %H:%M', this.x)}`;
+        }
+      },
+      plotOptions: {
+        column: {
+          pointPadding: 0.1,
+          borderWidth: 0,
+          zones: [
+            { value: 20, color: '#ef4444' },
+            { value: 40, color: '#f59e0b' },
+            { color: '#22c55e' }
+          ]
+        }
+      },
+      series: [{
+        name: 'Baterie',
+        data: batterySeries
+      }]
+    });
+  } else {
+    batteryChart.xAxis[0].update({ plotBands: zones });
+    batteryChart.series[0].setData(batterySeries, true);
+  }
 }
 
-async function loadDiagnostics() {
-  const res = await fetch(`/api/lora?hours=24`);
-  const data = await res.json();
+function updateSignalChart(data) {
+  if (!signalChart) {
+    signalChart = Highcharts.chart('signalChart', {
+      ...diagnosticChartOptions,
+      yAxis: { 
+        ...diagnosticChartOptions.yAxis,
+        labels: { 
+          ...diagnosticChartOptions.yAxis.labels,
+          format: '{value} dBm' 
+        },
+        plotBands: [
+          { from: -70, to: 0, color: 'rgba(16, 185, 129, 0.1)' },
+          { from: -85, to: -70, color: 'rgba(59, 130, 246, 0.1)' },
+          { from: -100, to: -85, color: 'rgba(245, 158, 11, 0.1)' },
+          { from: -150, to: -100, color: 'rgba(239, 68, 68, 0.1)' }
+        ]
+      },
+      tooltip: { 
+        ...diagnosticChartOptions.tooltip,
+        valueSuffix: ' dBm'
+      },
+      series: [{
+        name: 'Síla signálu',
+        data: data,
+        color: '#8b5cf6'
+      }]
+    });
+  } else {
+    signalChart.series[0].setData(data, true);
+  }
+}
 
-  Highcharts.chart('chart2', {
-    chart: { type: 'spline', backgroundColor: '#fff' },
-    title: { text: null },
-    xAxis: {
-      type: 'datetime',
-      labels: { format: '{value:%H:%M}' },
-      lineColor: '#ccc'
-    },
-    yAxis: {
-      title: { text: null },
-      labels: { format: '{value} \u00b0C' },
-      gridLineColor: '#eee'
-    },
-    tooltip: {
-      shared: true,
-      valueSuffix: ' \u00b0C',
-      xDateFormat: '%A, %e. %B %H:%M'
-    },
-    legend: { enabled: false },
-    plotOptions: {
-      spline: {
-        color: '#007AFF',
-        lineWidth: 2,
-        marker: { enabled: false }
-      }
-    },
-    series: [{ name: 'Teplota', data: data.temperature }]
-  });
-
-  generateBatteryChart(data.battery_voltage, data);
+function updateSolarChart(data) {
+  if (!solarChart) {
+    solarChart = Highcharts.chart('solarChart', {
+      ...diagnosticChartOptions,
+      chart: { ...diagnosticChartOptions.chart, type: 'area' },
+      yAxis: { 
+        ...diagnosticChartOptions.yAxis,
+        min: 0,
+        labels: { 
+          ...diagnosticChartOptions.yAxis.labels,
+          format: '{value} V' 
+        }
+      },
+      tooltip: { 
+        ...diagnosticChartOptions.tooltip,
+        valueSuffix: ' V'
+      },
+      plotOptions: {
+        area: {
+          fillColor: {
+            linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+            stops: [
+              [0, 'rgba(255, 193, 7, 0.4)'],
+              [1, 'rgba(255, 193, 7, 0)']
+            ]
+          },
+          marker: { enabled: false },
+          lineWidth: 2,
+          color: '#ffc107'
+        }
+      },
+      series: [{
+        name: 'Solární napětí',
+        data: data
+      }]
+    });
+  } else {
+    solarChart.series[0].setData(data, true);
+  }
 }
 
 async function loadStatus() {
   try {
-    const res = await fetch('/api/status');
-    const data = await res.json();
-    const container = document.getElementById('statusCards');
-    container.innerHTML = '';
-    container.className = 'flex flex-col md:flex-row justify-between gap-4 mb-10';
-
-    const batteryPct = batteryPercent(data.battery_v);
-    const batteryWarning = data.battery_v < 3.5 ? '<span class="text-yellow-500">⚠️</span> ' : '';
-
-    const connectedIcon = data.connected
-      ? `<svg class="w-5 h-5 inline-block text-green-500 mr-1" viewBox="0 0 24 24" fill="none"
-            xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
-            <circle cx="12" cy="12" r="4" fill="currentColor"/>
-        </svg> Online`
-      : `<svg class="w-5 h-5 inline-block text-red-500 mr-1" viewBox="0 0 24 24" fill="none"
-            xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
-            <path d="M9 9L15 15M15 9L9 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg> Offline`;
-
-    const powerSource = data.on_solar
-      ? `FV <svg class="w-5 h-5 text-yellow-500 inline-block mr-1" xmlns="http://www.w3.org/2000/svg" fill="none"
-          viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round"
-          stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`
-      : `Baterie <svg class="w-5 h-5 text-gray-500 inline-block mr-1" xmlns="http://www.w3.org/2000/svg" fill="none"
-          viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round"
-          stroke-width="2" d="M7 16V8m5 8V8m5 8V8m1-4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2z"/></svg>`;
-
-    // ⚡ Energie karta
-    const energyCard = document.createElement('div');
-    energyCard.className = 'bg-white p-4 rounded-lg shadow';
-    energyCard.innerHTML = `
-      <div class="text-sm text-gray-500 mb-1">Napájení</div>
-      <div class="text-xl font-bold text-gray-800 mb-1">${batteryWarning}${batteryPct}%</div>
-      <div class="text-sm text-gray-700">Napětí baterie: ${data.battery_v.toFixed(2)} V</div>
-      <div class="text-sm text-gray-700">Solární vstup: ${data.solar_v.toFixed(2)} V</div>
-      <div class="text-sm text-gray-700">Zdroj: ${powerSource}</div>
-    `;
-
-    // 📡 Připojení karta
-    const connCard = document.createElement('div');
-    connCard.className = 'bg-white p-4 rounded-lg shadow';
-    connCard.innerHTML = `
-      <div class="text-sm text-gray-500 mb-1">Připojení</div>
-      <div class="text-xl font-bold text-gray-800 mb-1">${connectedIcon}</div>
-      <div class="text-sm text-gray-700">Síla signálu: ${data.signal_dbm} dBm</div>
-    `;
-
-    // 🕒 Poslední přenos
-    const lastCard = document.createElement('div');
-    lastCard.className = 'bg-white p-4 rounded-lg shadow text-center';
-    lastCard.innerHTML = `
-      <div class="text-sm text-gray-500">Poslední přenos</div>
-      <div class="text-xl font-bold text-gray-800">${new Date(data.last_heartbeat).toLocaleString('cs-CZ')}</div>
-    `;
-
-    // 👉 Vložit do layoutu: vlevo (energy + conn), vpravo (last)
-    const leftGroup = document.createElement('div');
-    leftGroup.className = 'flex flex-col md:flex-row gap-4';
-    leftGroup.appendChild(energyCard);
-    leftGroup.appendChild(connCard);
-
-    const rightCard = document.createElement('div');
-    rightCard.className = 'self-start md:self-end';
-    rightCard.appendChild(lastCard);
-
-    container.appendChild(leftGroup);
-    container.appendChild(rightCard);
-
-
-  } catch (err) {
-    console.error('Chyba při načítání statusu:', err);
+    const data = await PondUtils.apiRequest('/api/status');
+    updateStatusCards(data);
+    updateSystemHealth(data);
+    updateHardwareInfo(data);
+    updateNetworkInfo(data);
+  } catch (error) {
+    console.error('Status loading error:', error);
   }
+}
+
+function updateStatusCards(data) {
+  const container = document.getElementById('statusCards');
+  container.innerHTML = '';
+
+  const batteryPct = batteryPercent(data.battery_v);
+  const signal = getSignalQuality(data.signal_dbm);
+  
+  // Energy Status Card
+  const energyCard = createStatusCard({
+    title: 'Napájení',
+    icon: '🔋',
+    value: `${batteryPct}%`,
+    details: [
+      `Napětí baterie: ${data.battery_v.toFixed(2)} V`,
+      `Solární vstup: ${data.solar_v.toFixed(2)} V`,
+      `Zdroj: ${data.on_solar ? 'Solární ☀️' : 'Baterie 🔋'}`
+    ],
+    status: batteryPct > 40 ? 'good' : batteryPct > 20 ? 'warning' : 'error',
+    warning: data.battery_v < 3.5
+  });
+
+  // Connection Status Card
+  const connectionCard = createStatusCard({
+    title: 'Připojení',
+    icon: data.connected ? '🟢' : '🔴',
+    value: data.connected ? 'Online' : 'Offline',
+    details: [
+      `Síla signálu: ${data.signal_dbm} dBm`,
+      `Kvalita: ${signal.quality} ${signal.icon}`,
+      `Poslední heartbeat: ${new Date(data.last_heartbeat).toLocaleTimeString('cs-CZ')}`
+    ],
+    status: data.connected ? 'good' : 'error'
+  });
+
+  // Temperature Card
+  const tempCard = createStatusCard({
+    title: 'Teplota',
+    icon: '🌡️',
+    value: `${data.temperature_c?.toFixed(1) || 'N/A'}°C`, // Fixed: Use temperature_c
+    details: [
+      `Interní čidlo`,
+      `Poslední měření: ${data.last_reading ? new Date(data.last_reading).toLocaleTimeString('cs-CZ') : 'N/A'}`
+    ],
+    status: 'good'
+  });
+
+  // Uptime Card
+  const uptimeCard = createStatusCard({
+    title: 'Provoz',
+    icon: '⏱️',
+    value: formatUptime(data.uptime_seconds || 0),
+    details: [
+      `Od: ${data.boot_time ? new Date(data.boot_time).toLocaleString('cs-CZ') : 'N/A'}`,
+      `Restart count: ${data.restart_count || 0}`
+    ],
+    status: 'good'
+  });
+
+  container.appendChild(energyCard);
+  container.appendChild(connectionCard);
+  container.appendChild(tempCard);
+  container.appendChild(uptimeCard);
+}
+
+function createStatusCard({ title, icon, value, details, status, warning }) {
+  const card = document.createElement('div');
+  card.className = `status-card status-${status} card animate-fade-in`;
+
+  card.innerHTML = `
+    <div class="card-body">
+      <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.5rem; margin-right: 0.5rem;">${icon}</span>
+            <h4 style="font-size: 0.875rem; font-weight: 500; margin: 0;" class="text-secondary">${title}</h4>
+            ${warning ? '<span style="margin-left: 0.5rem; color: var(--color-yellow);">⚠️</span>' : ''}
+          </div>
+          <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;" class="text-primary">${value}</div>
+          <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+            ${details.map(detail => `<div style="font-size: 0.875rem;" class="text-secondary">${detail}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return card;
+}
+
+function updateSystemHealth(data) {
+  const healthEl = document.getElementById('systemHealth');
+  const metricsEl = document.getElementById('healthMetrics');
+  
+  // Calculate overall health score
+  let score = 100;
+  const issues = [];
+  
+  if (!data.connected) { score -= 40; issues.push('Bez připojení'); }
+  if (data.battery_v < 3.3) { score -= 30; issues.push('Nízká baterie'); }
+  if (data.signal_dbm < -100) { score -= 20; issues.push('Slabý signál'); }
+  if (data.temperature_c && (data.temperature_c < -10 || data.temperature_c > 50)) { 
+    score -= 10; issues.push('Extrémní teplota'); 
+  }
+  
+  let healthStatus, healthColor, healthText;
+  if (score >= 80) {
+    healthStatus = 'good';
+    healthColor = 'background: var(--color-green-light); color: var(--color-green-dark);';
+    healthText = 'Systém v pořádku';
+  } else if (score >= 60) {
+    healthStatus = 'warning';
+    healthColor = 'background:  var(--color-yellow-light); color: var(--color-yellow-dark);';
+    healthText = 'Drobné problémy';
+  } else {
+    healthStatus = 'error';
+    healthColor = 'background: var(--color-red-light); color: var(--color-red-dark);';
+    healthText = 'Problémy vyžadují pozornost';
+  }
+  
+  healthEl.style.cssText = `display: flex; align-items: center; padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 500; ${healthColor}`;
+  healthEl.innerHTML = `
+    <div style="width: 0.5rem; height: 0.5rem; border-radius: 50%; margin-right: 0.5rem; background-color: ${healthStatus === 'good' ? 'var(--color-green)' : 
+      healthStatus === 'warning' ? 'var(--color-yellow)' : 'var(--color-red)'};"></div>
+    <span>${healthText}</span>
+  `;
+  
+  // Health metrics
+  metricsEl.innerHTML = `
+    <div style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: 700;" class="text-primary">${score}</div>
+      <div style="font-size: 0.875rem;" class="text-secondary">Health Score</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: 700;" class="text-primary">${issues.length}</div>
+      <div style="font-size: 0.875rem;" class="text-secondary">Aktivní problémy</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: 700;" class="text-primary">${Math.round((Date.now() - new Date(data.last_heartbeat)) / 60000)}min</div>
+      <div style="font-size: 0.875rem;" class="text-secondary">Poslední kontakt</div>
+    </div>
+  `;
+}
+
+function updateHardwareInfo(data) {
+  const container = document.getElementById('hardwareInfo');
+  container.innerHTML = `
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+      <span class="text-secondary">Device ID:</span>
+      <span style="font-family: monospace;" class="text-primary">${data.device_id || 'N/A'}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+      <span class="text-secondary">Firmware:</span>
+      <span style="font-family: monospace;" class="text-primary">${data.firmware_version || 'N/A'}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+      <span class="text-secondary">Hardware:</span>
+      <span style="font-family: monospace;" class="text-primary">${data.hardware_version || 'N/A'}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+      <span class="text-secondary">Volná paměť:</span>
+      <span style="font-family: monospace;" class="text-primary">${data.free_memory ? (data.free_memory / 1024).toFixed(1) + ' KB' : 'N/A'}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0;">
+      <span class="text-secondary">CPU Load:</span>
+      <span style="font-family: monospace;" class="text-primary">${data.cpu_usage ? data.cpu_usage.toFixed(1) + '%' : 'N/A'}</span>
+    </div>
+  `;
+}
+
+function updateNetworkInfo(data) {
+  const container = document.getElementById('networkInfo');
+  const signal = getSignalQuality(data.signal_dbm);
+  
+  container.innerHTML = `
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+      <span class="text-secondary">Stav připojení:</span>
+      <span style="font-weight: 600; color: ${data.connected ? 'var(--color-green)' : 'var(--color-red)'};">
+        ${data.connected ? '🟢 Online' : '🔴 Offline'}
+      </span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+      <span class="text-secondary">Síla signálu:</span>
+      <span style="font-family: monospace; color: ${signal.color};" class="text-primary">${data.signal_dbm} dBm (${signal.quality})</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+      <span class="text-secondary">Operátor:</span>
+      <span style="font-family: monospace;" class="text-primary">${data.network_operator || 'N/A'}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+      <span class="text-secondary">IP adresa:</span>
+      <span style="font-family: monospace;" class="text-primary">${data.ip_address || 'N/A'}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0;">
+      <span class="text-secondary">Datový přenos:</span>
+      <span style="font-family: monospace;" class="text-primary">${data.data_usage ? (data.data_usage / 1024 / 1024).toFixed(2) + ' MB' : 'N/A'}</span>
+    </div>
+  `;
+}
+
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+async function refreshLogs() {
+  try {
+    const logs = await PondUtils.apiRequest('/api/logs?limit=50');
+    const container = document.getElementById('systemLogs');
+    
+    if (logs.length === 0) {
+      container.innerHTML = '<div class="text-muted" style="font-size: 0.875rem;">Žádné události k zobrazení</div>';
+      return;
+    }
+    
+    container.innerHTML = logs.map(log => {
+      const date = new Date(log.timestamp).toLocaleString('cs-CZ');
+      const levelColors = {
+        'ERROR': 'var(--color-red)',
+        'WARNING': 'var(--color-yellow)',
+        'INFO': 'var(--color-blue)',
+        'DEBUG': 'var(--text-muted)'
+      };
+      const levelColor = levelColors[log.level] || 'var(--text-muted)';
+      
+      return `
+        <div style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border-light); font-size: 0.875rem;">
+          <div class="text-muted" style="width: 8rem; flex-shrink: 0; font-size: 0.75rem;">${date}</div>
+          <div style="width: 4rem; flex-shrink: 0; font-weight: 600; color: ${levelColor}; font-size: 0.75rem;">${log.level}</div>
+          <div class="text-primary" style="flex: 1;">${log.message}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (error) {
+    document.getElementById('systemLogs').innerHTML = 
+      '<div style="color: var(--color-red); font-size: 0.875rem;">Chyba při načítání událostí</div>';
+  }
+}
+
+async function testConnection() {
+  try {
+    PondUtils.showLoading();
+    const result = await PondUtils.apiRequest('/api/test-connection', { method: 'POST' });
+    
+    if (result.success) {
+      PondUtils.showSuccess('✅ Test připojení úspěšný');
+    } else {
+      PondUtils.showError('❌ Test připojení selhal: ' + result.error);
+    }
+  } catch (error) {
+    PondUtils.showError('❌ Test připojení selhal: ' + error.message);
+  } finally {
+    PondUtils.hideLoading();
+  }
+}
+
+async function exportDiagnostics() {
+  try {
+    PondUtils.showLoading();
+    const data = await PondUtils.apiRequest('/api/diagnostics/export');
+    
+    const content = JSON.stringify(data, null, 2);
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `diagnostics_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    PondUtils.showSuccess('Export úspěšně dokončen');
+  } catch (error) {
+    PondUtils.showError('Chyba při exportu: ' + error.message);
+  } finally {
+    PondUtils.hideLoading();
+  }
+}
+
+async function resetDevice() {
+  if (!confirm('Opravdu chcete restartovat zařízení? Tato akce může trvat několik minut.')) {
+    return;
+  }
+  
+  try {
+    PondUtils.showLoading();
+    await PondUtils.apiRequest('/api/device/reset', { method: 'POST' });
+    PondUtils.showInfo('🔄 Restart zařízení byl zahájen');
+  } catch (error) {
+    PondUtils.showError('Chyba při restartu: ' + error.message);
+  } finally {
+    PondUtils.hideLoading();
+  }
+}
+
+function updateChartTheme() {
+  // Redraw charts if they exist
+  [tempChart, batteryChart, signalChart, solarChart].forEach(chart => {
+    if (chart) chart.redraw();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
   loadDiagnostics();
   loadStatus();
-  setInterval(loadStatus, 30000);
+  refreshLogs();
+  
+  // Theme change listener
+  window.addEventListener('themeChange', updateChartTheme);
+  
+  // Range button event listeners
+  document.querySelectorAll('.diag-range-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const hours = parseInt(btn.dataset.hours);
+      currentHours = hours;
+      loadDiagnostics(hours);
+
+      // Update button styles
+      document.querySelectorAll('.diag-range-btn').forEach(b => {
+        b.className = 'btn btn-secondary diag-range-btn';
+      });
+      btn.className = 'btn btn-primary diag-range-btn';
+    });
+  });
+  
+  // Set initial active button
+  document.querySelector('[data-hours="24"]').className = 'btn btn-primary diag-range-btn';
+  
+  // Auto-refresh every 30 seconds
+  setInterval(() => {
+    loadStatus();
+    loadDiagnostics(currentHours);
+  }, 30000);
+  
+  // Auto-refresh logs every 60 seconds
+  setInterval(refreshLogs, 60000);
 });
 </script>
+
+<style>
+@media (max-width: 768px) {
+  .chart-container {
+    min-width: unset;
+  }
+  
+  #statusCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-body {
+    padding: 1rem;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+</style>
 {% endblock %}

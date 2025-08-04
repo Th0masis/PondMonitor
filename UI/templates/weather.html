@@ -1,225 +1,382 @@
 {% extends "base.html" %}
 {% set active_page = 'weather' %}
-{% block title %}Weather{% endblock %}
+{% block title %}Počasí - PondMonitor{% endblock %}
+{% block page_title %}Počasí{% endblock %}
+{% block page_subtitle %}Meteorologická data pro oblast Palkovice{% endblock %}
 
 {% block content %}
-<h2 class="text-2xl font-bold text-gray-800 mb-6">Počasí</h2>
-<div class="mb-6">
-  <h2 class="text-xl font-semibold mb-2">Krátkodobá předpověď</h2>
-  <div id="meteogram" class="bg-white p-4 rounded shadow text-center"></div>
+<!-- Current Weather Card -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <h3 class="chart-title">Aktuální počasí</h3>
+  </div>
+  <div class="card-body">
+    <div id="currentWeather" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+      <!-- Current weather cards will be populated here -->
+    </div>
+  </div>
 </div>
 
-<div class="mt-10">
-  <h2 class="text-xl font-semibold mb-2">Dlouhodobá předpověď</h2>
-  <div id="forecastCards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4"></div>
+<!-- Weather Statistics -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <h3 class="chart-title">Statistiky za posledních 24h</h3>
+  </div>
+  <div class="card-body">
+    <div id="weatherStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+      <!-- Weather statistics will be populated here -->
+    </div>
+  </div>
+</div>
+
+<!-- 48h Meteogram -->
+<div class="chart-container" style="margin-bottom: 2rem;">
+  <div class="chart-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+      <h3 class="chart-title">48hodinová předpověď</h3>
+      <p class="chart-meta" style="margin-top: 0.25rem;">
+        Detailní hodinová meteorologická data
+      </p>
+    </div>
+    <div style="display: flex; align-items: center; font-size: 0.875rem; margin-left: 1rem;" class="text-muted">
+      <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem; color: var(--color-blue);" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+      </svg>
+      <span>Interaktivní graf</span>
+    </div>
+  </div>
+  <div id="meteogram" style="height: 400px; border-radius: 8px; border: 1px solid var(--border-color);"></div>
+</div>
+
+<!-- 7-day Forecast -->
+<div class="card">
+  <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+      <h3 class="chart-title">7denní předpověď</h3>
+      <p class="chart-meta" style="margin-top: 0.25rem;">
+        Denní souhrn počasí na následující týden
+      </p>
+    </div>
+    <div style="display: flex; align-items: center; font-size: 0.875rem; margin-left: 1rem;" class="text-muted">
+      <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem; color: var(--color-green);" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
+      </svg>
+      <span>Denní souhrn</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div id="forecastCards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; overflow-x: auto;"></div>
+  </div>
 </div>
 {% endblock %}
 
 {% block head %}
 <script src="https://code.highcharts.com/modules/windbarb.js"></script>
-<script src="https://code.highcharts.com/modules/exporting.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', async function () {
-  const container = document.getElementById('meteogram');
+let meteogramChart = null;
+let currentWeatherData = null;
 
+// Weather icon mapping for better display
+const weatherIconMap = {
+  'clearsky': '☀️',
+  'fair': '🌤️',
+  'partlycloudy': '⛅',
+  'cloudy': '☁️',
+  'rainshowers': '🌦️',
+  'rain': '🌧️',
+  'lightrain': '🌦️',
+  'heavyrain': '🌧️',
+  'sleet': '🌨️',
+  'snow': '❄️',
+  'snowshowers': '🌨️',
+  'fog': '🌫️',
+  'thunderstorm': '⛈️'
+};
+
+function getWeatherIcon(symbolCode) {
+  const baseIcon = symbolCode.split('_')[0];
+  return weatherIconMap[baseIcon] || '🌤️';
+}
+
+function getWindDirection(degrees) {
+  const directions = ['S', 'SSZ', 'SZ', 'ZSZ', 'Z', 'ZSV', 'SV', 'SSV', 'S', 'SSZ', 'SZ', 'ZSZ', 'Z', 'ZSV', 'SV', 'SSV'];
+  const index = Math.round(degrees / 22.5) % 16;
+  return directions[index];
+}
+
+async function loadCurrentWeather() {
+  try {
+    let currentData;
+    
+    // Try to get current weather from API
+    try {
+      const currentRes = await fetch('/api/weather/current');
+      currentData = await currentRes.json();
+    } catch {
+      // Fallback: use latest data from meteogram
+      const res = await fetch('/api/weather/meteogram');
+      const data = await res.json();
+      if (data.length === 0) return;
+      
+      const now = Date.now();
+      currentData = data.find(d => d.time >= now) || data[0];
+    }
+    
+    updateCurrentWeatherCards(currentData);
+  } catch (error) {
+    console.error('Error loading current weather:', error);
+    PondUtils.showError('Chyba při načítání aktuálního počasí');
+  }
+}
+
+function updateCurrentWeatherCards(data) {
+  const container = document.getElementById('currentWeather');
+  const icon = getWeatherIcon(data.symbol_code || 'clearsky');
+  const windDir = getWindDirection(data.wind_direction || 0);
+  
+  container.innerHTML = `
+    <div class="weather-card" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.1));">
+      <div class="weather-icon">${icon}</div>
+      <div class="weather-value">${data.temperature?.toFixed(1) || 'N/A'}°C</div>
+      <div class="weather-label">Teplota</div>
+    </div>
+    
+    <div class="weather-card" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(103, 232, 249, 0.1));">
+      <div class="weather-icon">💧</div>
+      <div class="weather-value">${data.rain?.toFixed(1) || '0.0'} mm</div>
+      <div class="weather-label">Srážky (1h)</div>
+    </div>
+    
+    <div class="weather-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(110, 231, 183, 0.1));">
+      <div class="weather-icon">💨</div>
+      <div class="weather-value">${data.wind?.toFixed(1) || 'N/A'} m/s</div>
+      <div class="weather-label">Vítr ${windDir}</div>
+    </div>
+    
+    <div class="weather-card" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(196, 181, 253, 0.1));">
+      <div class="weather-icon">🌡️</div>
+      <div class="weather-value">${data.pressure?.toFixed(0) || 'N/A'} hPa</div>
+      <div class="weather-label">Tlak vzduchu</div>
+    </div>
+  `;
+}
+
+async function loadWeatherStats() {
   try {
     const res = await fetch('/api/weather/meteogram');
     const data = await res.json();
+    
+    if (data.length === 0) return;
+    
+    // Calculate 24h statistics
+    const last24h = data.filter(d => d.time >= Date.now() - 24 * 3600 * 1000);
+    
+    const temps = last24h.map(d => d.temperature);
+    const rains = last24h.map(d => d.rain);
+    const winds = last24h.map(d => d.wind);
+    const pressures = last24h.map(d => d.pressure);
+    
+    const stats = {
+      tempMax: Math.max(...temps),
+      tempMin: Math.min(...temps),
+      totalRain: rains.reduce((sum, r) => sum + r, 0),
+      maxWind: Math.max(...winds),
+      avgPressure: pressures.reduce((sum, p) => sum + p, 0) / pressures.length
+    };
+    
+    updateWeatherStats(stats);
+  } catch (error) {
+    console.error('Error loading weather stats:', error);
+  }
+}
+
+function updateWeatherStats(stats) {
+  const container = document.getElementById('weatherStats');
+  container.innerHTML = `
+    <div class="weather-card" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(252, 165, 165, 0.1));">
+      <div class="weather-value" style="color: var(--color-red);">${stats.tempMax.toFixed(1)}°C</div>
+      <div class="weather-label">Max teplota</div>
+    </div>
+    
+    <div class="weather-card" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.1));">
+      <div class="weather-value" style="color: var(--color-blue);">${stats.tempMin.toFixed(1)}°C</div>
+      <div class="weather-label">Min teplota</div>
+    </div>
+    
+    <div class="weather-card" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(103, 232, 249, 0.1));">
+      <div class="weather-value" style="color: var(--color-blue);">${stats.totalRain.toFixed(1)} mm</div>
+      <div class="weather-label">Celkové srážky</div>
+    </div>
+    
+    <div class="weather-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(110, 231, 183, 0.1));">
+      <div class="weather-value" style="color: var(--color-green);">${stats.maxWind.toFixed(1)} m/s</div>
+      <div class="weather-label">Max vítr</div>
+    </div>
+  `;
+}
+
+async function loadMeteogram() {
+  const container = document.getElementById('meteogram');
+  
+  try {
+    const res = await fetch('/api/weather/meteogram');
+    const data = await res.json();
+    currentWeatherData = data;
 
     const now = Date.now();
     const shortData = data.filter(d => d.time >= now && d.time <= now + 48 * 3600 * 1000);
 
+    if (shortData.length === 0) {
+      container.innerHTML = '<div style="text-align: center; padding: 2rem;" class="text-muted">Žádná data k zobrazení</div>';
+      return;
+    }
+
     const temperature = shortData.map(d => [d.time, d.temperature]);
     const rain = shortData.map(d => [d.time, d.rain]);
     const pressure = shortData.map(d => [d.time, d.pressure]);
+    const windSpeed = shortData.map(d => [d.time, d.wind]);
 
-    const windDir = shortData.map(d => ({
-      x: d.time,
-      y: 0,
-      marker: {
-        symbol: 'triangle',
-        rotation: d.wind_direction,
-        radius: 6,
-        fillColor: 'blue'
-      }
-    }));
-
+    // Weather icons for significant changes
     const weatherIcons = [];
     let lastIcon = null;
-    shortData.forEach(d => {
+    for (let i = 0; i < shortData.length; i += 6) { // Every 6 hours
+      const d = shortData[i];
       if (d.symbol_code !== lastIcon) {
-        const iconUrl = `https://api.met.no/images/weathericons/png/${d.symbol_code}.png`;
-        console.log('Adding icon:', iconUrl);
         weatherIcons.push({
           x: d.time,
-          y: d.temperature + 1.5,
-          marker: {
-            symbol: `url(${iconUrl})`
-            
+          y: d.temperature + 2,
+          dataLabels: {
+            enabled: true,
+            format: getWeatherIcon(d.symbol_code),
+            style: { fontSize: '20px', textOutline: 'none' },
+            y: -10
           }
         });
         lastIcon = d.symbol_code;
       }
     }
-  );
 
-    function weatherIconsRedraw(chart, weatherIcons) {
-      // Smazat staré ikony (volitelně si můžeš uložit .image objekty do pole a .destroy())
-      chart.weatherImages?.forEach(img => img.destroy());
-      chart.weatherImages = [];
-
-      weatherIcons.forEach(icon => {
-        const url = icon.marker.symbol.slice(4, -1);
-        const x = chart.xAxis[0].toPixels(icon.x) - 13;
-        const y = chart.yAxis[0].toPixels(icon.y) - 13;
-
-        const img = chart.renderer
-          .image(url, x, y, 26, 26)
-          .attr({ zIndex: 1 })
-          .add();
-
-        chart.weatherImages.push(img);
-      });
-    }
-
-    Highcharts.chart('meteogram', {
+    const chartOptions = {
       chart: {
-        height: 500,
-        spacingTop:10,
-        zoomType: 'x',
-        backgroundColor: '#ffffff',
-        events: {
-          load: function () {
-            weatherIconsRedraw(this, weatherIcons);
-          },
-          redraw: function () {
-            weatherIconsRedraw(this, weatherIcons);
-          }
-        }
+        height: 400,
+        backgroundColor: 'transparent',
+        style: { fontFamily: 'inherit' },
+        zoomType: 'x'
       },
-      exporting:{enabled:false},
-      title: { 
-        text: 'Meteo for Palkovice, Czechia',
-        align: 'left',
-        style: {
-          whiteSpace: 'nowrap',
-          textOverflow: 'ellipsis',
-        }
+      title: { text: null },
+      legend: { 
+        enabled: true,
+        align: 'center',
+        verticalAlign: 'bottom',
+        itemStyle: { color: 'var(--chart-text)' }
       },
-      legend: { enabled: false },
+      exporting: { enabled: false },
       plotOptions: {
-        series: {
-          marker: { enabled: false }
-        }
+        series: { marker: { enabled: false } }
       },
       xAxis: [
         {
           type: 'datetime',
           tickInterval: 6 * 3600 * 1000,
-          minorTickInterval: 36e5,
-          labels: { format: '{value:%H}' },
-          opposite: false,
+          minorTickInterval: 3600 * 1000,
+          labels: { 
+            format: '{value:%H:%M}',
+            style: { color: 'var(--chart-text)' }
+          },
           gridLineWidth: 1,
-          gridLineColor: '#ddd'
+          gridLineColor: 'var(--chart-grid)',
+          lineColor: 'var(--chart-grid)',
+          tickColor: 'var(--chart-grid)'
         },
         {
           type: 'datetime',
           tickInterval: 24 * 3600 * 1000,
           labels: {
-            format: '{value:%a %e}',
-            style: { fontWeight: 'bold' }
+            format: '{value:%a %e.%m}',
+            style: { fontWeight: 'bold', color: 'var(--chart-text)' }
           },
           opposite: true,
           linkedTo: 0,
           gridLineWidth: 1,
-          gridLineColor: '#ddd'
+          gridLineColor: 'var(--chart-grid)'
         }
       ],
-      yAxis: [{  //temperature
-          title: { text: null },
+      yAxis: [
+        { // Temperature
+          title: { 
+            text: 'Teplota (°C)',
+            style: { color: 'var(--chart-text)' }
+          },
           labels: {
             format: '{value}°',
-            style: { fontSize: '12px' },
-            x: -3
+            style: { color: 'var(--chart-text)' }
           },
-          plotLines: [{ //zero plane
+          plotLines: [{
             value: 0,
-            color: 'var(--highcharts-neutral-color-20, #bbb)',
+            color: '#666',
             width: 1,
             zIndex: 2
           }],
-          maxPadding: 0.3,
-          minRange: 10,
-          tickInterval: 1,
-          gridLineColor: 'rgba(128, 128, 128, 0.1)'
-        },{//percipitation
-          title: { text: null },
-          labels: { enabled: false },
-          gridLineWidth: 0,
-          tickLength: 0,
-          minRange: 10,
-          min: 0
-        },{ //air preasure
-          allowDecimals: false,
+          gridLineColor: 'var(--chart-grid)'
+        },
+        { // Rain
+          title: { 
+            text: 'Srážky (mm)',
+            style: { color: '#7cb5ec' }
+          },
+          labels: { 
+            style: { color: '#7cb5ec' } 
+          },
+          opposite: true,
+          min: 0,
+          gridLineWidth: 0
+        },
+        { // Pressure
           title: {
-            text: 'hPa',
-            offset: 0,
-            align: 'high',
-            rotation: 0,
-            style: {
-              fontSize: '12px',
-              color: '#4CAF50'
-            },
-            textAlign: 'left',
-            x: 3
+            text: 'Tlak (hPa)',
+            style: { color: '#4CAF50' }
           },
           labels: {
-            style: {
-              fontSize: '12px',
-              color: '#4CAF50'
-            },
-            y: 2,
-            x: 3
+            style: { color: '#4CAF50' }
           },
-          gridLineWidth: 0,
           opposite: true,
-          showLastLabel: false
+          gridLineWidth: 0
         }
       ],
       tooltip: {
         shared: true,
         useHTML: true,
+        backgroundColor: 'var(--chart-tooltip-bg)',
+        borderColor: 'var(--chart-tooltip-border)',
+        style: { color: 'var(--chart-text)' },
         formatter: function () {
-          const p = this.points?.[0]?.point;
           const x = this.x;
-
-          const dateStr = Highcharts.dateFormat('%A, %e. %B %Y', x);    // např. pondělí, 29. července 2025
-          const from = Highcharts.dateFormat('%H:%M', x);
-          const to = Highcharts.dateFormat('%H:%M', p.to || x + 3600000);
-          const icon = p.symbolName ? `🌤 ${p.symbolName}` : '';
-
-          let s = `<small><b>${dateStr}</b><br>${from} – ${to}</small><br><b>${icon}</b><hr style="margin:2px 0"/>`;
-
-          this.points.forEach(pt => {
-            s += `<span style="color:${pt.color}">●</span> ${pt.series.name}: <b>${pt.y}`;
-            if (pt.series.tooltipOptions.valueSuffix) {
-              s += pt.series.tooltipOptions.valueSuffix;
-            }
-            s += `</b><br>`;
+          const dateStr = Highcharts.dateFormat('%A, %e. %B %Y', x);
+          const timeStr = Highcharts.dateFormat('%H:%M', x);
+          
+          let html = `<div style="font-size: 12px;"><b>${dateStr}</b><br>${timeStr}</div><hr style="margin: 4px 0;">`;
+          
+          this.points.forEach(point => {
+            const color = point.color;
+            const name = point.series.name;
+            const value = point.y;
+            const suffix = point.series.tooltipOptions.valueSuffix || '';
+            
+            html += `<div><span style="color: ${color};">●</span> ${name}: <b>${value.toFixed(1)}${suffix}</b></div>`;
           });
-
-          return s;
+          
+          return html;
         }
-      }
-      ,
+      },
       series: [
         {
           name: 'Teplota',
           type: 'spline',
           data: temperature,
           yAxis: 0,
-          color: '#f45b5b',
-          tooltip: { valueSuffix: ' °C' }
+          color: '#f59e0b',
+          tooltip: { valueSuffix: '°C' },
+          lineWidth: 2
         },
         {
           name: 'Srážky',
@@ -227,15 +384,9 @@ document.addEventListener('DOMContentLoaded', async function () {
           data: rain,
           yAxis: 1,
           color: '#7cb5ec',
-          groupPadding: 0,
-          pointPadding: 0.05,
-          grouping: false,
-          dataLabels: {
-            enabled: true,
-            formatter: function () { return this.y > 0 ? this.y.toFixed(1) : null; },
-            style: { color: '#333', fontSize: '10px', textOutline: 'none' }
-          },
-          tooltip: { valueSuffix: ' mm' }
+          tooltip: { valueSuffix: ' mm' },
+          pointPadding: 0.1,
+          groupPadding: 0
         },
         {
           name: 'Tlak vzduchu',
@@ -243,46 +394,156 @@ document.addEventListener('DOMContentLoaded', async function () {
           data: pressure,
           yAxis: 2,
           color: '#4CAF50',
+          tooltip: { valueSuffix: ' hPa' },
           dashStyle: 'Dash',
-          lineWidth: 1,
-          tooltip: { valueSuffix: ' hPa' }
+          lineWidth: 1
         },
         {
-          name: 'Směr větru',
+          name: 'Rychlost větru',
+          type: 'spline',
+          data: windSpeed,
+          yAxis: 0,
+          color: '#8b5cf6',
+          tooltip: { valueSuffix: ' m/s' },
+          lineWidth: 1
+        },
+        {
+          name: 'Ikony počasí',
           type: 'scatter',
-          data: windDir,
-          yAxis: 1,
-          tooltip: { enabled: false },
-          enableMouseTracking: false
+          data: weatherIcons,
+          yAxis: 0,
+          marker: { enabled: false },
+          enableMouseTracking: false,
+          showInLegend: false
         }
       ]
-    });
-  } catch (err) {
-    console.error('Chyba při načítání krátkodobé předpovědi:', err);
-    container.innerText = 'Chyba načítání meteogramu.';
-  }
+    };
 
+    meteogramChart = Highcharts.chart('meteogram', chartOptions);
+    
+  } catch (err) {
+    console.error('Chyba při načítání meteogramu:', err);
+    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--color-red);">Chyba načítání meteogramu</div>';
+  }
+}
+
+async function loadLongForecast() {
   try {
     const response = await fetch('/api/weather/daily');
     const forecastData = await response.json();
     const cards = document.getElementById('forecastCards');
+    
     cards.innerHTML = '';
+    
     forecastData.forEach(day => {
       const card = document.createElement('div');
-      card.className = 'bg-white p-4 rounded shadow text-center';
-      card.innerHTML = `
-        <div class="text-sm text-gray-600">${day.date}</div>
-        <img src="https://api.met.no/images/weathericons/png/${day.icon}.png" alt="${day.icon}" class="h-10 mx-auto my-2">
-        <div class="text-lg font-semibold">${day.temp.toFixed(1)} °C</div>
-        <div class="text-sm text-gray-700">💧 ${day.rain} mm</div>
-        <div class="text-sm text-gray-700">💨 avg: ${day.wind_avg.toFixed(1)} | max: ${day.wind_gust.toFixed(1)} m/s</div>
+      card.className = 'weather-card animate-fade-in';
+      card.style.cssText = `
+        background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        transition: all 0.3s ease;
       `;
+      
+      const icon = getWeatherIcon(day.icon);
+      const date = new Date(day.date).toLocaleDateString('cs-CZ', { 
+        weekday: 'short', 
+        day: 'numeric', 
+        month: 'short' 
+      });
+      
+      card.innerHTML = `
+        <div class="weather-label" style="margin-bottom: 0.5rem; font-weight: 600;">${date}</div>
+        <div class="weather-icon" style="font-size: 2.5rem; margin: 0.75rem 0;">${icon}</div>
+        <div class="weather-value" style="font-size: 1.25rem; margin-bottom: 0.25rem;">${day.temp.toFixed(1)}°C</div>
+        <div class="weather-label" style="margin-bottom: 0.5rem; font-size: 0.75rem;">${day.temp_min.toFixed(1)}°C min</div>
+        <div style="font-size: 0.875rem; color: var(--color-blue); margin-bottom: 0.25rem;">💧 ${day.rain.toFixed(1)} mm</div>
+        <div class="weather-label" style="font-size: 0.75rem;">
+          💨 ${day.wind_avg.toFixed(1)} | ${day.wind_gust.toFixed(1)} m/s
+        </div>
+      `;
+      
+      card.addEventListener('mouseenter', () => {
+        card.style.transform = 'translateY(-2px)';
+        card.style.boxShadow = '0 8px 25px var(--shadow)';
+      });
+      
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = '0 2px 8px var(--shadow-sm)';
+      });
+      
       cards.appendChild(card);
     });
   } catch (err) {
     console.error('Chyba při načítání dlouhodobé předpovědi:', err);
-    document.getElementById('forecastCards').innerText = 'Chyba načítání předpovědi.';
+    document.getElementById('forecastCards').innerHTML = 
+      '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--color-red);">Chyba načítání předpovědi</div>';
   }
+}
+
+function updateChartTheme() {
+  if (meteogramChart) {
+    meteogramChart.redraw();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  // Load all weather data
+  loadCurrentWeather();
+  loadMeteogram();
+  loadLongForecast();
+  loadWeatherStats();
+  
+  // Theme change listener
+  window.addEventListener('themeChange', updateChartTheme);
+  
+  // Auto-refresh every 30 minutes
+  setInterval(() => {
+    loadCurrentWeather();
+    loadMeteogram();
+    loadLongForecast();
+    loadWeatherStats();
+    PondUtils.updateLastUpdateTime();
+  }, 30 * 60 * 1000);
 });
 </script>
+
+<style>
+/* Custom scrollbar for forecast cards on mobile */
+#forecastCards {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+#forecastCards::-webkit-scrollbar {
+  height: 6px;
+}
+
+#forecastCards::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#forecastCards::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 3px;
+}
+
+#forecastCards::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  #forecastCards {
+    overflow-x: auto;
+    grid-template-columns: repeat(7, minmax(140px, 1fr));
+    scroll-snap-type: x mandatory;
+  }
+  
+  #forecastCards > * {
+    scroll-snap-align: start;
+  }
+}
+</style>
 {% endblock %}

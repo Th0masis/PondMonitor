@@ -1,130 +1,283 @@
 {% extends "base.html" %}
 {% set active_page = 'dashboard' %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard - PondMonitor{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Přehled úrovně vody a odtoku{% endblock %}
 
 {% block content %}
-<h2 class="text-2xl font-bold text-gray-800 mb-6">DashBoard</h2>
-<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-
-  <!-- Manual range selector -->
-  <div class="flex flex-wrap items-center gap-2">
-    <label for="startDate" class="text-sm font-medium text-gray-700">Období:</label>
-    <input type="datetime-local" id="startDate" class="border px-2 py-1 rounded-md" />
-    <input type="datetime-local" id="endDate" class="border px-2 py-1 rounded-md" />
-    <button onclick="loadManual()" class="bg-blue-500 text-white px-4 py-1 rounded-md">Go</button>
+<!-- Statistics cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+  <div class="stat-card">
+    <div class="stat-icon blue">
+      <svg fill="currentColor" viewBox="0 0 20 20" style="width: 1.5rem; height: 1.5rem;">
+        <path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732L14.146 12.8l-1.179 4.456a1 1 0 01-1.934 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732L9.854 7.2l1.179-4.456A1 1 0 0112 2z" clip-rule="evenodd"></path>
+      </svg>
+    </div>
+    <div class="stat-value" id="currentLevel">- cm</div>
+    <div class="stat-label">Aktuální hladina</div>
   </div>
-
-  <!-- Quick range buttons -->
-  <div id="quickRangeButtons" class="flex flex-wrap gap-2">
-    <button data-hours="1" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">1h</button>
-    <button data-hours="6" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">6h</button>
-    <button data-hours="12" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">12h</button>
-    <button data-hours="24" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">24h</button>
-    <button data-hours="72" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">3d</button>
-    <button data-hours="168" class="range-btn px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">7d</button>
+  
+  <div class="stat-card">
+    <div class="stat-icon green">
+      <svg fill="currentColor" viewBox="0 0 20 20" style="width: 1.5rem; height: 1.5rem;">
+        <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+      </svg>
+    </div>
+    <div class="stat-value" id="currentOutflow">- l/s</div>
+    <div class="stat-label">Aktuální odtok</div>
   </div>
-
+  
+  <div class="stat-card">
+    <div class="stat-icon yellow">
+      <svg fill="currentColor" viewBox="0 0 20 20" style="width: 1.5rem; height: 1.5rem;">
+        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+      </svg>
+    </div>
+    <div class="stat-value" id="maxLevel24h">- cm</div>
+    <div class="stat-label">Max hladina (24h)</div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon purple">
+      <svg fill="currentColor" viewBox="0 0 20 20" style="width: 1.5rem; height: 1.5rem;">
+        <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"></path>
+      </svg>
+    </div>
+    <div class="stat-value" id="levelTrend">-</div>
+    <div class="stat-label">Trend hladiny</div>
+  </div>
 </div>
 
+<!-- Charts with Controls -->
+<div class="card" style="margin-bottom: 2rem;">
+  <!-- Controls Header -->
+  <div class="card-header">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
+      <!-- Manual range selector -->
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;">
+        <label for="startDate" class="form-label" style="margin: 0;">Časové období:</label>
+        <input type="datetime-local" id="startDate" class="form-input" style="width: auto;" />
+        <span class="text-muted">do</span>
+        <input type="datetime-local" id="endDate" class="form-input" style="width: auto;" />
+        <button onclick="loadManual()" class="btn btn-primary">
+          Načíst
+        </button>
+      </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <div class="bg-white p-4 rounded-lg shadow">
-    <h3 class="font-semibold mb-2">Výška hladiny (cm)</h3>
-    <div id="chartLevel"></div>
+      <!-- Quick range buttons -->
+      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+        <button data-hours="1" class="btn btn-secondary range-btn">1h</button>
+        <button data-hours="6" class="btn btn-secondary range-btn">6h</button>
+        <button data-hours="12" class="btn btn-secondary range-btn">12h</button>
+        <button data-hours="24" class="btn btn-primary range-btn">24h</button>
+        <button data-hours="72" class="btn btn-secondary range-btn">3d</button>
+        <button data-hours="168" class="btn btn-secondary range-btn">7d</button>
+      </div>
+    </div>
   </div>
 
-  <div class="bg-white p-4 rounded-lg shadow">
-    <h3 class="font-semibold mb-2">Odtok (l/s)</h3>
-    <div id="chartOutflow"></div>
+  <!-- Charts Content -->
+  <div class="card-body" style="padding: 0;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 0;">
+      <div style="padding: 1.5rem; border-right: 1px solid var(--border-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light);">
+          <h3 class="chart-title">Výška hladiny</h3>
+          <div class="chart-meta">
+            <span id="levelDataPoints">0 bodů</span>
+          </div>
+        </div>
+        <div id="chartLevel" style="height: 320px;"></div>
+      </div>
+
+      <div style="padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light);">
+          <h3 class="chart-title">Odtok</h3>
+          <div class="chart-meta">
+            <span id="outflowDataPoints">0 bodů</span>
+          </div>
+        </div>
+        <div id="chartOutflow" style="height: 320px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export options -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="chart-title">Export dat</h3>
+  </div>
+  <div class="card-body">
+    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+      <button onclick="exportData('csv')" class="btn btn-success">
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+        </svg>
+        Export CSV
+      </button>
+      <button onclick="exportData('json')" class="btn btn-primary">
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+        </svg>
+        Export JSON
+      </button>
+      <button onclick="printCharts()" class="btn btn-warning">
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zM5 14H4v-2h1v2zm1 0v2h6v-2H6zm10 0v-2h1v2h-1z" clip-rule="evenodd"></path>
+        </svg>
+        Tisknout grafy
+      </button>
+    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block head %}
 <script>
-  Highcharts.setOptions({
-    lang: {
-      months: ['leden', 'únor', 'březen', 'duben', 'květen', 'červen',
-               'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec'],
-      weekdays: ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota'],
-      shortMonths: ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čer', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'],
-      decimalPoint: ',',
-      thousandsSep: ' '
-    },
-    accessibility: {
-      enabled: false
-    }
-  });
+  let chartLevel = null;
+  let chartOutflow = null;
+  let currentData = null;
 
-  
-    let chartLevel = null;
-    let chartOutflow = null;
+  const chartOptions = {
+    chart: { 
+      type: 'area',
+      backgroundColor: 'transparent',
+      style: {
+        fontFamily: 'inherit'
+      }
+    },
+    title: { text: null },
+    legend: { enabled: false },
+    exporting: { enabled: false },
+    xAxis: {
+      type: 'datetime',
+      labels: { 
+        format: '{value:%e. %b %H:%M}',
+        style: { color: 'var(--chart-text)' }
+      },
+      gridLineColor: 'var(--chart-grid)',
+      lineColor: 'var(--chart-grid)',
+      tickColor: 'var(--chart-grid)'
+    },
+    yAxis: { 
+      title: { text: null },
+      labels: { style: { color: 'var(--chart-text)' } },
+      gridLineColor: 'var(--chart-grid)'
+    },
+    tooltip: {
+      backgroundColor: 'var(--chart-tooltip-bg)',
+      borderColor: 'var(--chart-tooltip-border)',
+      style: { color: 'var(--chart-text)' },
+      xDateFormat: '%A, %e. %B %Y %H:%M',
+      valueDecimals: 2,
+      shared: true
+    },
+    plotOptions: {
+      area: {
+        fillColor: 'url(#gradient-primary)',
+        marker: { enabled: false },
+        lineWidth: 2
+      }
+    }
+  };
 
   async function loadDashboard(start, end) {
-    const res = await fetch(`/api/dashboard?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
-    const data = await res.json();
+    try {
+      const data = await PondUtils.apiRequest(`/api/dashboard?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+      currentData = data;
 
-    if (data.error) {
-      alert("Chyba načítání dat: " + data.error);
-      return;
+      // Update statistics
+      updateStatistics(data);
+
+      // Update charts
+      updateLevelChart(data.level);
+      updateOutflowChart(data.outflow);
+
+      // Update data point counts
+      document.getElementById('levelDataPoints').textContent = `${data.level.length} bodů`;
+      document.getElementById('outflowDataPoints').textContent = `${data.outflow.length} bodů`;
+
+      PondUtils.updateLastUpdateTime();
+    } catch (error) {
+      console.error('Dashboard loading error:', error);
+    }
+  }
+
+  function updateStatistics(data) {
+    if (data.level.length > 0) {
+      const latestLevel = data.level[data.level.length - 1][1];
+      const maxLevel = Math.max(...data.level.map(p => p[1]));
+      
+      document.getElementById('currentLevel').textContent = `${latestLevel.toFixed(1)} cm`;
+      document.getElementById('maxLevel24h').textContent = `${maxLevel.toFixed(1)} cm`;
+      
+      // Calculate trend
+      if (data.level.length >= 2) {
+        const firstLevel = data.level[0][1];
+        const trend = latestLevel - firstLevel;
+        const trendEl = document.getElementById('levelTrend');
+        
+        if (trend > 0.5) {
+          trendEl.textContent = '↗ Stoupá';
+          trendEl.style.color = 'var(--color-green)';
+        } else if (trend < -0.5) {
+          trendEl.textContent = '↘ Klesá';
+          trendEl.style.color = 'var(--color-red)';
+        } else {
+          trendEl.textContent = '→ Stabilní';
+          trendEl.style.color = 'var(--text-secondary)';
+        }
+      }
     }
 
+    if (data.outflow.length > 0) {
+      const latestOutflow = data.outflow[data.outflow.length - 1][1];
+      document.getElementById('currentOutflow').textContent = `${latestOutflow.toFixed(2)} l/s`;
+    }
+  }
+
+  function updateLevelChart(data) {
     if (!chartLevel) {
       chartLevel = Highcharts.chart('chartLevel', {
-      chart: { type: 'area' },
-      title: { text: null },
-      legend: {enabled: false},
-      xAxis: {
-        type: 'datetime',
-        labels: { format: '{value:%e. %b %H:%M}' }
-      },
-      yAxis: { title: { text: 'cm' } },
-      tooltip: {
-        xDateFormat: '%A, %e. %B %Y %H:%M',
-        valueDecimals: 2,
-        shared: true
-      },
-      series: [{
-        name: 'Výška hladiny',
-        data: data.level,
-        color: '#00c896', 
-        fillColor: 'url(#gradient-0)'
-      }]
-    });
+        ...chartOptions,
+        yAxis: { 
+          ...chartOptions.yAxis,
+          title: { text: 'cm', style: { color: 'var(--chart-text)' } }
+        },
+        series: [{
+          name: 'Výška hladiny',
+          data: data,
+          color: '#00c896'
+        }]
+      });
     } else {
-      chartLevel.series[0].setData(data.level, true);
-     }
+      chartLevel.series[0].setData(data, true);
+    }
+  }
 
+  function updateOutflowChart(data) {
     if (!chartOutflow) {
       chartOutflow = Highcharts.chart('chartOutflow', {
-      chart: { type: 'area' },
-      title: { text: null },
-      legend: {enabled: false},
-      xAxis: {
-        type: 'datetime',
-        labels: { format: '{value:%e. %b %H:%M}' }
-      },
-      yAxis: { title: { text: 'l/s' } },
-      tooltip: {
-        xDateFormat: '%A, %e. %B %Y %H:%M',
-        valueDecimals: 2,
-        shared: true
-      },
-      series: [{
-        name: 'Odtok',
-        data: data.outflow,
-        color: '#00c896',
-        fillColor: 'url(#gradient-0)'
-      }]
-    });
-  } else {
-      chartOutflow.series[0].setData(data.outflow, true);
-     }
+        ...chartOptions,
+        yAxis: { 
+          ...chartOptions.yAxis,
+          title: { text: 'l/s', style: { color: 'var(--chart-text)' } }
+        },
+        series: [{
+          name: 'Odtok',
+          data: data,
+          color: '#00c896'
+        }]
+      });
+    } else {
+      chartOutflow.series[0].setData(data, true);
     }
+  }
 
   function loadQuick(hours) {
     const now = new Date();
     const start = new Date(now.getTime() - hours * 3600 * 1000);
+    
     document.getElementById('startDate').value = start.toISOString().slice(0, 16);
     document.getElementById('endDate').value = now.toISOString().slice(0, 16);
     loadDashboard(start.toISOString(), now.toISOString());
@@ -134,28 +287,149 @@
     const start = document.getElementById('startDate').value;
     const end = document.getElementById('endDate').value;
 
-    document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
-    
+    // Reset all buttons to secondary
+    document.querySelectorAll('.range-btn').forEach(b => {
+      b.className = 'btn btn-secondary range-btn';
+    });
 
     if (start && end) {
       loadDashboard(new Date(start).toISOString(), new Date(end).toISOString());
     } else {
-      alert("Zadejte časový rozsah");
+      PondUtils.showError("Zadejte časový rozsah");
     }
+  }
+
+  function exportData(format) {
+    if (!currentData) {
+      PondUtils.showError("Nejprve načtěte data");
+      return;
+    }
+
+    let content, filename, mimeType;
+
+    if (format === 'csv') {
+      content = 'Timestamp,Level_cm,Outflow_lps\n';
+      // Merge data by timestamp
+      const dataMap = new Map();
+      currentData.level.forEach(([ts, val]) => {
+        if (!dataMap.has(ts)) dataMap.set(ts, {});
+        dataMap.get(ts).level = val;
+      });
+      currentData.outflow.forEach(([ts, val]) => {
+        if (!dataMap.has(ts)) dataMap.set(ts, {});
+        dataMap.get(ts).outflow = val;
+      });
+      
+      for (const [ts, values] of dataMap) {
+        const date = new Date(ts).toISOString();
+        content += `${date},${values.level || ''},${values.outflow || ''}\n`;
+      }
+      
+      filename = `pond_data_${new Date().toISOString().slice(0, 10)}.csv`;
+      mimeType = 'text/csv';
+    } else if (format === 'json') {
+      content = JSON.stringify(currentData, null, 2);
+      filename = `pond_data_${new Date().toISOString().slice(0, 10)}.json`;
+      mimeType = 'application/json';
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function printCharts() {
+    window.print();
+  }
+
+  // Update charts when theme changes
+  function updateChartTheme() {
+    if (chartLevel) chartLevel.redraw();
+    if (chartOutflow) chartOutflow.redraw();
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     loadQuick(24);
+    
+    // Theme change listener
+    window.addEventListener('themeChange', updateChartTheme);
+    
+    // Range button event listeners
     document.querySelectorAll('.range-btn').forEach(btn => {
       btn.addEventListener('click', e => {
         const hours = parseInt(btn.dataset.hours);
         loadQuick(hours);
 
-    // Update button styles
-    document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
-    btn.classList.add('bg-blue-500', 'text-white');
+        // Update button styles
+        document.querySelectorAll('.range-btn').forEach(b => {
+          b.className = 'btn btn-secondary range-btn';
+        });
+        btn.className = 'btn btn-primary range-btn';
       });
     });
+    
+    // Set initial active button
+    document.querySelector('[data-hours="24"]').className = 'btn btn-primary range-btn';
+    
+    // Auto-refresh every 5 minutes
+    setInterval(() => {
+      const endInput = document.getElementById('endDate');
+      if (endInput.value) {
+        const endTime = new Date(endInput.value);
+        const now = new Date();
+        // Only auto-refresh if we're looking at recent data
+        if (now - endTime < 60 * 60 * 1000) { // Within 1 hour of now
+          endInput.value = now.toISOString().slice(0, 16);
+          loadManual();
+        }
+      }
+    }, 5 * 60 * 1000);
   });
 </script>
+
+<style>
+  @media print {
+    .no-print { display: none !important; }
+    .chart-container { 
+      break-inside: avoid; 
+      page-break-inside: avoid;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .chart-container {
+      min-width: unset;
+    }
+    
+    /* Stack charts vertically on mobile */
+    .card-body > div {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .card-body > div > div {
+      border-right: none !important;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .card-body > div > div:last-child {
+      border-bottom: none !important;
+    }
+  }
+  
+  @media (max-width: 640px) {
+    .card-header > div {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+    }
+    
+    .card-header > div > div {
+      justify-content: center;
+    }
+  }
+</style>
 {% endblock %}
