@@ -77,10 +77,11 @@
   </div>
 
   <!-- Charts Content -->
-  <div class="card-body" style="padding: 0;">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 0;">
-      <div style="padding: 1.5rem; border-right: 1px solid var(--border-color);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light);">
+  <div class="charts-section">
+    <div class="charts-grid">
+      <!-- Level Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
           <h3 class="chart-title">Výška hladiny</h3>
           <div class="chart-meta">
             <span id="levelDataPoints">0 bodů</span>
@@ -89,8 +90,9 @@
         <div id="chartLevel" style="height: 320px;"></div>
       </div>
 
-      <div style="padding: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light);">
+      <!-- Outflow Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
           <h3 class="chart-title">Odtok</h3>
           <div class="chart-meta">
             <span id="outflowDataPoints">0 bodů</span>
