@@ -224,7 +224,14 @@ const diagnosticChartOptions = {
 };
 
 function batteryPercent(v) {
-  return Math.round(Math.max(Math.min((v - 3.0) / 1.2 * 100, 0), 100));
+  const minVoltage = 3.0;  // 0% battery
+  const maxVoltage = 4.2;  // 100% battery (adjust based on your battery type)
+  
+  // Calculate percentage with proper bounds
+  const percentage = ((v - minVoltage) / (maxVoltage - minVoltage)) * 100;
+  
+  // Clamp between 0% and 100%
+  return Math.round(Math.max(0, Math.min(100, percentage)));
 }
 
 function getSignalQuality(dbm) {
@@ -306,6 +313,12 @@ function updateBatteryChart(voltageData, rawData) {
     }
   }
 
+  // Create a voltage lookup map for tooltip
+  const voltageMap = new Map();
+  voltageData.forEach(([ts, v]) => {
+    voltageMap.set(ts, v);
+  });
+
   if (!batteryChart) {
     batteryChart = Highcharts.chart('batteryChart', {
       ...diagnosticChartOptions,
@@ -326,8 +339,111 @@ function updateBatteryChart(voltageData, rawData) {
       tooltip: { 
         ...diagnosticChartOptions.tooltip,
         formatter: function () {
-          const volt = rawData?.battery_voltage.find(p => p[0] === this.x)?.[1];
-          return `<b>${this.y}%</b><br>${volt?.toFixed(2)} V<br>${Highcharts.dateFormat('%e. %b %H:%M', this.x)}`;
+          // Get voltage from the lookup map using the timestamp
+          const voltage = voltageMap.get(this.x);
+          const percentage = this.y;
+          
+          return `<b>${percentage}%</b><br/>` +
+                 `${voltage ? voltage.toFixed(2) + ' V' : 'N/A'}<br/>` +
+                 `${Highcharts.dateFormat('%e. %b %H:%M', this.x)}`;
+        }
+      },
+      plotOptions: {
+        column: {
+          pointPadding: 0.1,
+          borderWidth: 0,
+          zones: [
+            { value: 20, color: '#ef4444' },
+            { value: 40, color: '#f59e0b' },
+            { color: '#22c55e' }
+          ]
+        }
+      },
+      series: [{
+        name: 'Baterie',
+        data: batterySeries
+      }]
+    });
+  } else {
+    // When updating existing chart, also update the tooltip formatter with new data
+    batteryChart.update({
+      xAxis: {
+        plotBands: zones
+      },
+      tooltip: {
+        formatter: function () {
+          // Use the updated voltage map
+          const voltage = voltageMap.get(this.x);
+          const percentage = this.y;
+          
+          return `<b>${percentage}%</b><br/>` +
+                 `${voltage ? voltage.toFixed(2) + ' V' : 'N/A'}<br/>` +
+                 `${Highcharts.dateFormat('%e. %b %H:%M', this.x)}`;
+        }
+      }
+    }, false); // false = don't redraw yet
+    
+    batteryChart.series[0].setData(batterySeries, true); // true = redraw after data update
+  }
+}
+
+// Alternative approach: Store voltage data directly in the chart points
+function updateBatteryChartAlt(voltageData, rawData) {
+  // Create battery series with both percentage and voltage data stored in each point
+  const batterySeries = voltageData.map(([ts, v]) => ({
+    x: ts,
+    y: batteryPercent(v),
+    voltage: v // Store original voltage in the point
+  }));
+  
+  // Create charging zones
+  const zones = [];
+  if (rawData?.solar_voltage?.length) {
+    let inCharge = false;
+    let chargeStart = null;
+
+    rawData.solar_voltage.forEach(([ts, solar]) => {
+      const isCharging = solar > 1.0;
+      if (isCharging && !inCharge) {
+        inCharge = true;
+        chargeStart = ts;
+      } else if (!isCharging && inCharge) {
+        inCharge = false;
+        zones.push({ color: 'rgba(34, 197, 94, 0.1)', from: chargeStart, to: ts });
+      }
+    });
+    if (inCharge && chargeStart) {
+      zones.push({ color: 'rgba(34, 197, 94, 0.1)', from: chargeStart, to: Date.now() });
+    }
+  }
+
+  if (!batteryChart) {
+    batteryChart = Highcharts.chart('batteryChart', {
+      ...diagnosticChartOptions,
+      chart: { ...diagnosticChartOptions.chart, type: 'column' },
+      xAxis: {
+        ...diagnosticChartOptions.xAxis,
+        plotBands: zones
+      },
+      yAxis: { 
+        ...diagnosticChartOptions.yAxis,
+        max: 100,
+        min: 0,
+        labels: { 
+          ...diagnosticChartOptions.yAxis.labels,
+          format: '{value}%' 
+        }
+      },
+      tooltip: { 
+        ...diagnosticChartOptions.tooltip,
+        formatter: function () {
+          // Access voltage directly from the point data
+          const voltage = this.point.voltage;
+          const percentage = this.y;
+          
+          return `<b>${percentage}%</b><br/>` +
+                 `${voltage ? voltage.toFixed(2) + ' V' : 'N/A'}<br/>` +
+                 `${Highcharts.dateFormat('%e. %b %H:%M', this.x)}`;
         }
       },
       plotOptions: {
@@ -349,6 +465,29 @@ function updateBatteryChart(voltageData, rawData) {
   } else {
     batteryChart.xAxis[0].update({ plotBands: zones });
     batteryChart.series[0].setData(batterySeries, true);
+  }
+}
+
+// Also fix the loadDiagnostics function to pass the correct data structure
+async function loadDiagnostics(hours = 24) {
+  try {
+    const data = await PondUtils.apiRequest(`/api/lora?hours=${hours}`);
+    
+    // Update data point counts
+    document.getElementById('tempDataPoints').textContent = `${data.temperature?.length || 0} bodů`;
+    document.getElementById('batteryDataPoints').textContent = `${data.battery_voltage?.length || 0} bodů`;
+    document.getElementById('signalDataPoints').textContent = `${data.signal_strength?.length || 0} bodů`;
+    document.getElementById('solarDataPoints').textContent = `${data.solar_voltage?.length || 0} bodů`;
+
+    // Update charts - make sure we pass the complete data object
+    updateTemperatureChart(data.temperature || []);
+    updateBatteryChart(data.battery_voltage || [], data); // Pass the complete data object
+    updateSignalChart(data.signal_strength || []);
+    updateSolarChart(data.solar_voltage || []);
+
+    PondUtils.updateLastUpdateTime();
+  } catch (error) {
+    console.error('Diagnostics loading error:', error);
   }
 }
 
