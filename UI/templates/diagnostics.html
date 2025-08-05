@@ -182,47 +182,6 @@ let signalChart = null;
 let solarChart = null;
 let currentHours = 24;
 
-// Chart configuration
-const diagnosticChartOptions = {
-  chart: { 
-    type: 'spline',
-    backgroundColor: 'transparent',
-    style: { fontFamily: 'inherit' }
-  },
-  title: { text: null },
-  legend: { enabled: false },
-  exporting: { enabled: false },
-  xAxis: {
-    type: 'datetime',
-    labels: { 
-      format: '{value:%e. %b %H:%M}',
-      style: { color: 'var(--chart-text)' }
-    },
-    gridLineColor: 'var(--chart-grid)',
-    lineColor: 'var(--chart-grid)',
-    tickColor: 'var(--chart-grid)'
-  },
-  yAxis: { 
-    title: { text: null },
-    labels: { style: { color: 'var(--chart-text)' } },
-    gridLineColor: 'var(--chart-grid)'
-  },
-  tooltip: {
-    backgroundColor: 'var(--chart-tooltip-bg)',
-    borderColor: 'var(--chart-tooltip-border)',
-    style: { color: 'var(--chart-text)' },
-    xDateFormat: '%A, %e. %B %Y %H:%M',
-    valueDecimals: 2,
-    shared: true
-  },
-  plotOptions: {
-    spline: {
-      marker: { enabled: false },
-      lineWidth: 2
-    }
-  }
-};
-
 function batteryPercent(v) {
   const minVoltage = 3.0;  // 0% battery
   const maxVoltage = 4.2;  // 100% battery (adjust based on your battery type)
@@ -240,7 +199,6 @@ function getSignalQuality(dbm) {
   if (dbm >= -100) return { quality: 'Slabý', color: 'var(--color-yellow)', icon: '📶' };
   return { quality: 'Velmi slabý', color: 'var(--color-red)', icon: '📵' };
 }
-
 
 // Function to calculate appropriate tick intervals based on time range
 function getTickInterval(hours) {
@@ -334,7 +292,7 @@ async function loadDiagnostics(hours = 24) {
     // Update data point counts
     document.getElementById('tempDataPoints').textContent = `${data.temperature?.length || 0} bodů`;
     document.getElementById('batteryDataPoints').textContent = `${data.battery_voltage?.length || 0} bodů`;
-    document.getElementById('signalDataPoints').textContent = `${data.signal_strength?.length || 0} bodů`; // Fixed: Use signal_strength
+    document.getElementById('signalDataPoints').textContent = `${data.signal_strength?.length || 0} bodů`;
     document.getElementById('solarDataPoints').textContent = `${data.solar_voltage?.length || 0} bodů`;
 
     // Create chart options with appropriate intervals for the time range
@@ -343,7 +301,7 @@ async function loadDiagnostics(hours = 24) {
     // Update charts
     updateTemperatureChart(data.temperature || [], chartOptions, hours);
     updateBatteryChart(data.battery_voltage || [], data, chartOptions, hours);
-    updateSignalChart(data.signal_strength || [], chartOptions, hours); // Fixed: Use signal_strength
+    updateSignalChart(data.signal_strength || [], chartOptions, hours);
     updateSolarChart(data.solar_voltage || [], chartOptions, hours);
 
     PondUtils.updateLastUpdateTime();
@@ -352,7 +310,7 @@ async function loadDiagnostics(hours = 24) {
   }
 }
 
-function updateTemperatureChart(data) {
+function updateTemperatureChart(data, chartOptions, hours) {
   if (!tempChart) {
     tempChart = Highcharts.chart('temperatureChart', {
       ...chartOptions,
@@ -374,10 +332,10 @@ function updateTemperatureChart(data) {
       }]
     });
   } else {
-    solarChart.update({
+    tempChart.update({
       xAxis: chartOptions.xAxis
     }, false);
-    solarChart.series[0].setData(data, true);
+    tempChart.series[0].setData(data, true);
   }
 }
 
@@ -409,12 +367,6 @@ function updateBatteryChart(voltageData, rawData, chartOptions, hours) {
     }
   }
 
-  // Create a voltage lookup map for tooltip
-  const voltageMap = new Map();
-  voltageData.forEach(([ts, v]) => {
-    voltageMap.set(ts, v);
-  });
-
   if (!batteryChart) {
     batteryChart = Highcharts.chart('batteryChart', {
       ...chartOptions,
@@ -435,106 +387,6 @@ function updateBatteryChart(voltageData, rawData, chartOptions, hours) {
       tooltip: { 
         ...chartOptions.tooltip,
         formatter: function () {
-          // Get voltage from the lookup map using the timestamp
-          const voltage = voltageMap.get(this.x);
-          const percentage = this.y;
-          
-          return `<b>${percentage}%</b><br/>` +
-                 `${voltage ? voltage.toFixed(2) + ' V' : 'N/A'}<br/>` +
-                 `${Highcharts.dateFormat('%e. %b %H:%M', this.x)}`;
-        }
-      },
-      plotOptions: {
-        column: {
-          pointPadding: 0.1,
-          borderWidth: 0,
-          zones: [
-            { value: 20, color: '#ef4444' },
-            { value: 40, color: '#f59e0b' },
-            { color: '#22c55e' }
-          ]
-        }
-      },
-      series: [{
-        name: 'Baterie',
-        data: batterySeries
-      }]
-    });
-  } else {
-    // When updating existing chart, also update the tooltip formatter with new data
-    batteryChart.update({
-      xAxis: {
-        ...chartOptions.xAxis,
-        plotBands: zones
-      },
-      tooltip: {
-        formatter: function () {
-          // Use the updated voltage map
-          const voltage = voltageMap.get(this.x);
-          const percentage = this.y;
-          
-          return `<b>${percentage}%</b><br/>` +
-                 `${voltage ? voltage.toFixed(2) + ' V' : 'N/A'}<br/>` +
-                 `${Highcharts.dateFormat('%e. %b %H:%M', this.x)}`;
-        }
-      }
-    }, false); // false = don't redraw yet
-    
-    batteryChart.series[0].setData(batterySeries, true); // true = redraw after data update
-  }
-}
-
-// Alternative approach: Store voltage data directly in the chart points
-function updateBatteryChartAlt(voltageData, rawData) {
-  // Create battery series with both percentage and voltage data stored in each point
-  const batterySeries = voltageData.map(([ts, v]) => ({
-    x: ts,
-    y: batteryPercent(v),
-    voltage: v // Store original voltage in the point
-  }));
-  
-  // Create charging zones
-  const zones = [];
-  if (rawData?.solar_voltage?.length) {
-    let inCharge = false;
-    let chargeStart = null;
-
-    rawData.solar_voltage.forEach(([ts, solar]) => {
-      const isCharging = solar > 1.0;
-      if (isCharging && !inCharge) {
-        inCharge = true;
-        chargeStart = ts;
-      } else if (!isCharging && inCharge) {
-        inCharge = false;
-        zones.push({ color: 'rgba(34, 197, 94, 0.1)', from: chargeStart, to: ts });
-      }
-    });
-    if (inCharge && chargeStart) {
-      zones.push({ color: 'rgba(34, 197, 94, 0.1)', from: chargeStart, to: Date.now() });
-    }
-  }
-
-  if (!batteryChart) {
-    batteryChart = Highcharts.chart('batteryChart', {
-      ...diagnosticChartOptions,
-      chart: { ...diagnosticChartOptions.chart, type: 'column' },
-      xAxis: {
-        ...diagnosticChartOptions.xAxis,
-        plotBands: zones
-      },
-      yAxis: { 
-        ...diagnosticChartOptions.yAxis,
-        max: 100,
-        min: 0,
-        labels: { 
-          ...diagnosticChartOptions.yAxis.labels,
-          format: '{value}%' 
-        }
-      },
-      tooltip: { 
-        ...diagnosticChartOptions.tooltip,
-        formatter: function () {
-          // Access voltage directly from the point data
           const voltage = this.point.voltage;
           const percentage = this.y;
           
@@ -560,7 +412,12 @@ function updateBatteryChartAlt(voltageData, rawData) {
       }]
     });
   } else {
-    batteryChart.xAxis[0].update({ plotBands: zones });
+    batteryChart.update({
+      xAxis: {
+        ...chartOptions.xAxis,
+        plotBands: zones
+      }
+    }, false);
     batteryChart.series[0].setData(batterySeries, true);
   }
 }
@@ -593,10 +450,10 @@ function updateSignalChart(data, chartOptions, hours) {
       }]
     });
   } else {
-    solarChart.update({
+    signalChart.update({
       xAxis: chartOptions.xAxis
     }, false);
-    solarChart.series[0].setData(data, true);
+    signalChart.series[0].setData(data, true);
   }
 }
 
@@ -694,7 +551,7 @@ function updateStatusCards(data) {
   const tempCard = createStatusCard({
     title: 'Teplota',
     icon: '🌡️',
-    value: `${data.temperature_c?.toFixed(1) || 'N/A'}°C`, // Fixed: Use temperature_c
+    value: `${data.temperature_c?.toFixed(1) || 'N/A'}°C`,
     details: [
       `Interní čidlo`,
       `Poslední měření: ${data.last_reading ? new Date(data.last_reading).toLocaleTimeString('cs-CZ') : 'N/A'}`
