@@ -241,6 +241,92 @@ function getSignalQuality(dbm) {
   return { quality: 'Velmi slabý', color: 'var(--color-red)', icon: '📵' };
 }
 
+
+// Function to calculate appropriate tick intervals based on time range
+function getTickInterval(hours) {
+  if (hours <= 1) {
+    return {
+      tickInterval: 15 * 60 * 1000,     // 15 minutes
+      minorTickInterval: 5 * 60 * 1000,  // 5 minutes
+      format: '{value:%H:%M}'
+    };
+  } else if (hours <= 6) {
+    return {
+      tickInterval: 60 * 60 * 1000,      // 1 hour
+      minorTickInterval: 15 * 60 * 1000, // 15 minutes
+      format: '{value:%H:%M}'
+    };
+  } else if (hours <= 24) {
+    return {
+      tickInterval: 4 * 60 * 60 * 1000,  // 4 hours
+      minorTickInterval: 60 * 60 * 1000, // 1 hour
+      format: '{value:%H:%M}'
+    };
+  } else if (hours <= 72) {
+    return {
+      tickInterval: 12 * 60 * 60 * 1000, // 12 hours
+      minorTickInterval: 3 * 60 * 60 * 1000, // 3 hours
+      format: '{value:%e. %b %H:%M}'
+    };
+  } else {
+    return {
+      tickInterval: 24 * 60 * 60 * 1000, // 1 day
+      minorTickInterval: 6 * 60 * 60 * 1000, // 6 hours
+      format: '{value:%e. %b}'
+    };
+  }
+}
+
+// Updated diagnostic chart options with dynamic intervals
+function createDiagnosticChartOptions(hours = 24) {
+  const tickConfig = getTickInterval(hours);
+  
+  return {
+    chart: { 
+      type: 'spline',
+      backgroundColor: 'transparent',
+      style: { fontFamily: 'inherit' }
+    },
+    title: { text: null },
+    legend: { enabled: false },
+    exporting: { enabled: false },
+    xAxis: {
+      type: 'datetime',
+      tickInterval: tickConfig.tickInterval,
+      minorTickInterval: tickConfig.minorTickInterval,
+      labels: { 
+        format: tickConfig.format,
+        style: { color: 'var(--chart-text)' },
+        rotation: hours > 24 ? -45 : 0 // Rotate labels for longer periods
+      },
+      gridLineColor: 'var(--chart-grid)',
+      lineColor: 'var(--chart-grid)',
+      tickColor: 'var(--chart-grid)',
+      minorGridLineColor: 'var(--chart-grid)',
+      minorGridLineWidth: 0.5
+    },
+    yAxis: { 
+      title: { text: null },
+      labels: { style: { color: 'var(--chart-text)' } },
+      gridLineColor: 'var(--chart-grid)'
+    },
+    tooltip: {
+      backgroundColor: 'var(--chart-tooltip-bg)',
+      borderColor: 'var(--chart-tooltip-border)',
+      style: { color: 'var(--chart-text)' },
+      xDateFormat: '%A, %e. %B %Y %H:%M',
+      valueDecimals: 2,
+      shared: true
+    },
+    plotOptions: {
+      spline: {
+        marker: { enabled: false },
+        lineWidth: 2
+      }
+    }
+  };
+}
+
 async function loadDiagnostics(hours = 24) {
   try {
     const data = await PondUtils.apiRequest(`/api/lora?hours=${hours}`);
@@ -251,11 +337,14 @@ async function loadDiagnostics(hours = 24) {
     document.getElementById('signalDataPoints').textContent = `${data.signal_strength?.length || 0} bodů`; // Fixed: Use signal_strength
     document.getElementById('solarDataPoints').textContent = `${data.solar_voltage?.length || 0} bodů`;
 
+    // Create chart options with appropriate intervals for the time range
+    const chartOptions = createDiagnosticChartOptions(hours);
+
     // Update charts
-    updateTemperatureChart(data.temperature || []);
-    updateBatteryChart(data.battery_voltage || [], data);
-    updateSignalChart(data.signal_strength || []); // Fixed: Use signal_strength
-    updateSolarChart(data.solar_voltage || []);
+    updateTemperatureChart(data.temperature || [], chartOptions, hours);
+    updateBatteryChart(data.battery_voltage || [], data, chartOptions, hours);
+    updateSignalChart(data.signal_strength || [], chartOptions, hours); // Fixed: Use signal_strength
+    updateSolarChart(data.solar_voltage || [], chartOptions, hours);
 
     PondUtils.updateLastUpdateTime();
   } catch (error) {
@@ -266,16 +355,16 @@ async function loadDiagnostics(hours = 24) {
 function updateTemperatureChart(data) {
   if (!tempChart) {
     tempChart = Highcharts.chart('temperatureChart', {
-      ...diagnosticChartOptions,
+      ...chartOptions,
       yAxis: { 
-        ...diagnosticChartOptions.yAxis,
+        ...chartOptions.yAxis,
         labels: { 
-          ...diagnosticChartOptions.yAxis.labels,
+          ...chartOptions.yAxis.labels,
           format: '{value}°C' 
         }
       },
       tooltip: { 
-        ...diagnosticChartOptions.tooltip,
+        ...chartOptions.tooltip,
         valueSuffix: ' °C'
       },
       series: [{
@@ -285,12 +374,19 @@ function updateTemperatureChart(data) {
       }]
     });
   } else {
-    tempChart.series[0].setData(data, true);
+    solarChart.update({
+      xAxis: chartOptions.xAxis
+    }, false);
+    solarChart.series[0].setData(data, true);
   }
 }
 
-function updateBatteryChart(voltageData, rawData) {
-  const batterySeries = voltageData.map(([ts, v]) => [ts, batteryPercent(v)]);
+function updateBatteryChart(voltageData, rawData, chartOptions, hours) {
+  const batterySeries = voltageData.map(([ts, v]) => ({
+    x: ts,
+    y: batteryPercent(v),
+    voltage: v
+  }));
   
   // Create charging zones
   const zones = [];
@@ -321,23 +417,23 @@ function updateBatteryChart(voltageData, rawData) {
 
   if (!batteryChart) {
     batteryChart = Highcharts.chart('batteryChart', {
-      ...diagnosticChartOptions,
-      chart: { ...diagnosticChartOptions.chart, type: 'column' },
+      ...chartOptions,
+      chart: { ...chartOptions.chart, type: 'column' },
       xAxis: {
-        ...diagnosticChartOptions.xAxis,
+        ...chartOptions.xAxis,
         plotBands: zones
       },
       yAxis: { 
-        ...diagnosticChartOptions.yAxis,
+        ...chartOptions.yAxis,
         max: 100,
         min: 0,
         labels: { 
-          ...diagnosticChartOptions.yAxis.labels,
+          ...chartOptions.yAxis.labels,
           format: '{value}%' 
         }
       },
       tooltip: { 
-        ...diagnosticChartOptions.tooltip,
+        ...chartOptions.tooltip,
         formatter: function () {
           // Get voltage from the lookup map using the timestamp
           const voltage = voltageMap.get(this.x);
@@ -368,6 +464,7 @@ function updateBatteryChart(voltageData, rawData) {
     // When updating existing chart, also update the tooltip formatter with new data
     batteryChart.update({
       xAxis: {
+        ...chartOptions.xAxis,
         plotBands: zones
       },
       tooltip: {
@@ -468,37 +565,14 @@ function updateBatteryChartAlt(voltageData, rawData) {
   }
 }
 
-// Also fix the loadDiagnostics function to pass the correct data structure
-async function loadDiagnostics(hours = 24) {
-  try {
-    const data = await PondUtils.apiRequest(`/api/lora?hours=${hours}`);
-    
-    // Update data point counts
-    document.getElementById('tempDataPoints').textContent = `${data.temperature?.length || 0} bodů`;
-    document.getElementById('batteryDataPoints').textContent = `${data.battery_voltage?.length || 0} bodů`;
-    document.getElementById('signalDataPoints').textContent = `${data.signal_strength?.length || 0} bodů`;
-    document.getElementById('solarDataPoints').textContent = `${data.solar_voltage?.length || 0} bodů`;
-
-    // Update charts - make sure we pass the complete data object
-    updateTemperatureChart(data.temperature || []);
-    updateBatteryChart(data.battery_voltage || [], data); // Pass the complete data object
-    updateSignalChart(data.signal_strength || []);
-    updateSolarChart(data.solar_voltage || []);
-
-    PondUtils.updateLastUpdateTime();
-  } catch (error) {
-    console.error('Diagnostics loading error:', error);
-  }
-}
-
-function updateSignalChart(data) {
+function updateSignalChart(data, chartOptions, hours) {
   if (!signalChart) {
     signalChart = Highcharts.chart('signalChart', {
-      ...diagnosticChartOptions,
+      ...chartOptions,
       yAxis: { 
-        ...diagnosticChartOptions.yAxis,
+        ...chartOptions.yAxis,
         labels: { 
-          ...diagnosticChartOptions.yAxis.labels,
+          ...chartOptions.yAxis.labels,
           format: '{value} dBm' 
         },
         plotBands: [
@@ -509,7 +583,7 @@ function updateSignalChart(data) {
         ]
       },
       tooltip: { 
-        ...diagnosticChartOptions.tooltip,
+        ...chartOptions.tooltip,
         valueSuffix: ' dBm'
       },
       series: [{
@@ -519,25 +593,28 @@ function updateSignalChart(data) {
       }]
     });
   } else {
-    signalChart.series[0].setData(data, true);
+    solarChart.update({
+      xAxis: chartOptions.xAxis
+    }, false);
+    solarChart.series[0].setData(data, true);
   }
 }
 
-function updateSolarChart(data) {
+function updateSolarChart(data, chartOptions, hours) {
   if (!solarChart) {
     solarChart = Highcharts.chart('solarChart', {
-      ...diagnosticChartOptions,
-      chart: { ...diagnosticChartOptions.chart, type: 'area' },
+      ...chartOptions,
+      chart: { ...chartOptions.chart, type: 'area' },
       yAxis: { 
-        ...diagnosticChartOptions.yAxis,
+        ...chartOptions.yAxis,
         min: 0,
         labels: { 
-          ...diagnosticChartOptions.yAxis.labels,
+          ...chartOptions.yAxis.labels,
           format: '{value} V' 
         }
       },
       tooltip: { 
-        ...diagnosticChartOptions.tooltip,
+        ...chartOptions.tooltip,
         valueSuffix: ' V'
       },
       plotOptions: {
@@ -560,6 +637,9 @@ function updateSolarChart(data) {
       }]
     });
   } else {
+    solarChart.update({
+      xAxis: chartOptions.xAxis
+    }, false);
     solarChart.series[0].setData(data, true);
   }
 }
