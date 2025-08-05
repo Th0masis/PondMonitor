@@ -256,6 +256,13 @@ async function loadMeteogram() {
       }
     }
 
+    // Calculate smart Y-axis max for rain to prevent tiny values from looking huge
+    const maxRain = Math.max(...rain.map(r => r[1]));
+    const rainYMax = Math.max(5, Math.ceil(maxRain * 1.2)); // Minimum 5mm scale, or 20% above max value
+
+    // Check if we're in dark mode for rain column styling
+    const isDarkMode = document.documentElement.classList.contains('dark');
+
     const chartOptions = {
       chart: {
         height: 400,
@@ -272,7 +279,26 @@ async function loadMeteogram() {
       },
       exporting: { enabled: false },
       plotOptions: {
-        series: { marker: { enabled: false } }
+        series: { marker: { enabled: false } },
+        column: {
+          pointPadding: 0.1,
+          groupPadding: 0,
+          borderWidth: 0,
+          borderColor: 'transparent',
+          dataLabels: {
+            enabled: true,
+            formatter: function() {
+              return this.y > 0 ? this.y.toFixed(1) + 'mm' : null;
+            },
+            style: {
+              color: 'var(--chart-text)',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              textOutline: isDarkMode ? '1px contrast' : '1px #ffffff'
+            },
+            y: -5
+          }
+        }
       },
       xAxis: [
         {
@@ -302,9 +328,9 @@ async function loadMeteogram() {
         }
       ],
       yAxis: [
-        { // Temperature
+        { // Temperature - Left axis
           title: { 
-            text: 'Teplota (°C)',
+            text: 'Teplota (°C) / Srážky (mm)',
             style: { color: 'var(--chart-text)' }
           },
           labels: {
@@ -317,21 +343,11 @@ async function loadMeteogram() {
             width: 1,
             zIndex: 2
           }],
-          gridLineColor: 'var(--chart-grid)'
+          gridLineColor: 'var(--chart-grid)',
+          // Set max to accommodate both temperature and rain scale
+          max: Math.max(40, Math.max(...temperature.map(t => t[1])) + 5, rainYMax)
         },
-        { // Rain
-          title: { 
-            text: 'Srážky (mm)',
-            style: { color: '#7cb5ec' }
-          },
-          labels: { 
-            style: { color: '#7cb5ec' } 
-          },
-          opposite: true,
-          min: 0,
-          gridLineWidth: 0
-        },
-        { // Pressure
+        { // Pressure - Right axis
           title: {
             text: 'Tlak (hPa)',
             style: { color: '#4CAF50' }
@@ -382,7 +398,7 @@ async function loadMeteogram() {
           name: 'Srážky',
           type: 'column',
           data: rain,
-          yAxis: 1,
+          yAxis: 0, // Use same axis as temperature
           color: '#7cb5ec',
           tooltip: { valueSuffix: ' mm' },
           pointPadding: 0.1,
@@ -392,7 +408,7 @@ async function loadMeteogram() {
           name: 'Tlak vzduchu',
           type: 'spline',
           data: pressure,
-          yAxis: 2,
+          yAxis: 1,
           color: '#4CAF50',
           tooltip: { valueSuffix: ' hPa' },
           dashStyle: 'Dash',
@@ -484,6 +500,17 @@ async function loadLongForecast() {
 
 function updateChartTheme() {
   if (meteogramChart) {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    
+    // Update rain series border for dark mode
+    const rainSeries = meteogramChart.series.find(s => s.name === 'Srážky');
+    if (rainSeries) {
+      rainSeries.update({
+        borderWidth: isDarkMode ? 1 : 0,
+        borderColor: isDarkMode ? 'var(--chart-text)' : 'transparent'
+      });
+    }
+    
     meteogramChart.redraw();
   }
 }
