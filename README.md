@@ -34,6 +34,7 @@
 - [✨ Features](#-features)
 - [🏗️ Architecture](#️-architecture)
 - [🚀 Quick Start](#-quick-start)
+- [🏭 Production Setup (Without Make)](#-production-setup-without-make)
 - [📖 User Manual](#-user-manual)
 - [🔧 Development](#-development)
 - [📊 API Documentation](#-api-documentation)
@@ -155,6 +156,8 @@ PondMonitor is a comprehensive IoT monitoring platform designed for environmenta
 - **Network:** Internet connection for weather data
 - **Optional:** `make` utility for convenient commands
 
+> **🏭 Production Deployment:** For production setup with real hardware and without `make`, see the [Production Setup Guide](#-production-setup-without-make) below.
+
 > **🔧 Docker Compose Installation:**
 > ```bash
 > # Ubuntu/Debian (modern plugin)
@@ -225,6 +228,434 @@ Once started, access the web interface at:
 - **Weather Page:** http://localhost:5000/weather  
 - **Diagnostics:** http://localhost:5000/diagnostics
 - **API Health:** http://localhost:5000/health
+
+---
+
+## 🏭 Production Setup (Without Make)
+
+For users who don't have `make` installed or prefer manual setup, this section provides comprehensive step-by-step instructions for production deployment with real hardware.
+
+## 📋 Prerequisites
+
+- **Docker:** Version 20.10+ with Docker Compose
+- **Operating System:** Linux/macOS/Windows with WSL2
+- **Hardware Requirements:** 
+  - 4GB RAM minimum, 8GB recommended
+  - USB LoRa device connected (typically `/dev/ttyUSB0`)
+- **Network:** Internet connection for weather data
+- **Permissions:** User access to Docker and serial devices
+
+## 🔧 Hardware Setup
+
+### 1. Connect USB LoRa Device
+
+```bash
+# Check if your USB device is detected
+ls -la /dev/ttyUSB*
+
+# Should show something like:
+# crw-rw---- 1 root dialout 188, 0 Jan  8 10:30 /dev/ttyUSB0
+
+# If no device appears, check system logs
+dmesg | grep tty
+```
+
+### 2. Set Device Permissions
+
+Choose one of these methods:
+
+**Method A: Direct permissions (temporary)**
+```bash
+sudo chmod 666 /dev/ttyUSB0
+```
+
+**Method B: Add user to dialout group (permanent)**
+```bash
+# Add your user to the dialout group
+sudo usermod -a -G dialout $USER
+
+# Log out and log back in for changes to take effect
+# Verify group membership
+groups | grep dialout
+```
+
+## 🚀 Production Deployment
+
+### Step 1: Clone and Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/Th0masis/PondMonitor.git
+cd PondMonitor
+
+# Verify Docker Compose availability
+docker compose version || docker-compose version
+```
+
+### Step 2: Configure Environment
+
+```bash
+# Create production environment file
+cp .env.testing .env.prod
+
+# Edit the production configuration
+nano .env.prod  # or use your preferred editor
+```
+
+**Key changes for production in `.env.prod`:**
+```bash
+# Serial/LoRa Configuration - PRODUCTION MODE
+SERIAL_PORT=/dev/ttyUSB0
+BAUD_RATE=9600
+TESTING_MODE=false
+SIMULATE_DATA=false
+
+# Application Configuration
+FLASK_ENV=production
+FLASK_SECRET_KEY=your_strong_production_secret_key_here
+
+# Security: Change default passwords
+POSTGRES_PASSWORD=your_secure_database_password_here
+GRAFANA_PASSWORD=your_secure_grafana_password_here
+
+# Weather API Configuration (customize for your location)
+WEATHER_LAT=49.6265900
+WEATHER_LON=18.3016172
+WEATHER_ALT=350
+USER_AGENT=YourPondMonitor/1.0 (your.email@domain.com)
+```
+
+### Step 3: Activate Production Configuration
+
+```bash
+# Copy production config to active environment
+cp .env.prod .env
+
+# Verify configuration
+grep -E "TESTING_MODE|SIMULATE_DATA" .env
+# Should show:
+# TESTING_MODE=false
+# SIMULATE_DATA=false
+```
+
+### Step 4: Build Docker Images
+
+```bash
+# Auto-detect Docker Compose command and build
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose build
+else
+    docker-compose build
+fi
+```
+
+### Step 5: Deploy Production Services
+
+```bash
+# Deploy with production configuration (includes USB device mounting)
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+else
+    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+fi
+```
+
+### Step 6: Verify Deployment
+
+```bash
+# Check service status
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose ps
+else
+    docker-compose ps
+fi
+
+# Expected output should show all services as "Up"
+# NAME                    SERVICE       STATUS       PORTS
+# pondmonitor-flask_ui-1      flask_ui      Up          0.0.0.0:5000->5000/tcp
+# pondmonitor-lora_gateway-1  lora_gateway  Up
+# pondmonitor-redis-1         redis         Up          0.0.0.0:6379->6379/tcp
+# pondmonitor-timescaledb-1   timescaledb   Up          0.0.0.0:5432->5432/tcp
+```
+
+### Step 7: Test Production System
+
+```bash
+# Test API health
+curl -s http://localhost:5000/health | python3 -m json.tool
+
+# Check LoRa gateway logs
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose logs -f lora_gateway
+else
+    docker-compose logs -f lora_gateway
+fi
+# Look for messages like: "✅ Connected to serial port /dev/ttyUSB0"
+```
+
+## 🔍 Monitoring and Maintenance
+
+### View Real-time Logs
+
+```bash
+# All services
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose logs -f
+else
+    docker-compose logs -f
+fi
+
+# Specific service
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose logs -f lora_gateway
+    docker compose logs -f flask_ui
+else
+    docker-compose logs -f lora_gateway
+    docker-compose logs -f flask_ui
+fi
+```
+
+### Check System Status
+
+```bash
+# Service health
+curl http://localhost:5000/health
+
+# Current sensor status
+curl http://localhost:5000/api/status
+
+# Container resource usage
+docker stats
+```
+
+### Database Operations
+
+```bash
+# Connect to database
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose exec timescaledb psql -U pond_user -d pond_data
+else
+    docker-compose exec timescaledb psql -U pond_user -d pond_data
+fi
+
+# View recent data
+# In psql:
+SELECT timestamp, temperature_c, battery_v, signal_dbm 
+FROM station_metrics 
+ORDER BY timestamp DESC 
+LIMIT 10;
+```
+
+### Backup Database
+
+```bash
+# Create backup directory
+mkdir -p backups
+
+# Backup database
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose exec timescaledb pg_dump -U pond_user pond_data > backups/pond_data_$(date +%Y%m%d_%H%M%S).sql
+else
+    docker-compose exec timescaledb pg_dump -U pond_user pond_data > backups/pond_data_$(date +%Y%m%d_%H%M%S).sql
+fi
+```
+
+## 🛠️ Troubleshooting Production Issues
+
+### Serial Device Problems
+
+```bash
+# Check device is still connected
+ls -la /dev/ttyUSB*
+
+# Check device permissions
+ls -la /dev/ttyUSB0
+# Should show: crw-rw---- 1 root dialout
+
+# Test device manually
+cat /dev/ttyUSB0
+# Should show data if device is working
+
+# Check container device mounting
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose exec lora_gateway ls -la /dev/ttyUSB0
+else
+    docker-compose exec lora_gateway ls -la /dev/ttyUSB0
+fi
+```
+
+### Service Issues
+
+```bash
+# Restart specific service
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose restart lora_gateway
+    docker compose restart flask_ui
+else
+    docker-compose restart lora_gateway
+    docker-compose restart flask_ui
+fi
+
+# Full system restart
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose down
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+else
+    docker-compose down
+    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+fi
+```
+
+### Data Issues
+
+```bash
+# Check data is being written
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose exec timescaledb psql -U pond_user -d pond_data -c "SELECT COUNT(*) FROM station_metrics WHERE timestamp > NOW() - INTERVAL '1 hour';"
+else
+    docker-compose exec timescaledb psql -U pond_user -d pond_data -c "SELECT COUNT(*) FROM station_metrics WHERE timestamp > NOW() - INTERVAL '1 hour';"
+fi
+
+# Check Redis cache
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose exec redis redis-cli get latest_status
+else
+    docker-compose exec redis redis-cli get latest_status
+fi
+```
+
+## 🔄 Updates and Maintenance
+
+### Update Application
+
+```bash
+# Pull latest changes
+git pull origin main
+
+# Rebuild images
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose build
+else
+    docker-compose build
+fi
+
+# Restart services with new images
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+else
+    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+fi
+```
+
+### Clean Up Resources
+
+```bash
+# Remove unused images and containers
+docker system prune -f
+
+# Remove unused volumes (⚠️ This will delete data!)
+docker volume prune -f
+```
+
+## 📊 Monitoring Stack (Optional)
+
+To enable Grafana and Prometheus monitoring:
+
+```bash
+# Start with monitoring profile
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose --profile monitoring -f docker-compose.yml -f docker-compose.prod.yml up -d
+else
+    docker-compose --profile monitoring -f docker-compose.yml -f docker-compose.prod.yml up -d
+fi
+
+# Access Grafana at http://localhost:3000
+# Default login: admin / secure_admin_password (from .env)
+```
+
+## 🚨 Emergency Recovery
+
+### Complete System Reset
+
+```bash
+# ⚠️ WARNING: This will delete all data!
+# Stop all services
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose down -v
+else
+    docker-compose down -v
+fi
+
+# Remove volumes
+docker volume rm pondmonitor_timescale_data pondmonitor_redis_data
+
+# Restart system
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+else
+    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+fi
+```
+
+### Switch Back to Testing Mode
+
+```bash
+# Copy testing configuration
+cp .env.testing .env
+
+# Restart in testing mode
+if command -v docker compose >/dev/null 2>&1; then
+    docker compose down
+    docker compose up -d
+else
+    docker-compose down
+    docker-compose up -d
+fi
+```
+
+## 📱 Access Points
+
+Once deployed, access your PondMonitor at:
+
+- **Main Dashboard:** http://localhost:5000
+- **Weather Page:** http://localhost:5000/weather  
+- **Diagnostics:** http://localhost:5000/diagnostics
+- **API Health:** http://localhost:5000/health
+- **Grafana (if enabled):** http://localhost:3000
+
+## 🔐 Security Considerations
+
+1. **Change default passwords** in `.env` file
+2. **Use firewall** to restrict access to ports 5000, 5432, 6379
+3. **Enable HTTPS** in production with reverse proxy (nginx/Apache)
+4. **Regular backups** of database
+5. **Monitor logs** for suspicious activity
+6. **Keep Docker images updated**
+
+## 📞 Getting Help
+
+If you encounter issues:
+
+1. **Check logs first:**
+   ```bash
+   docker compose logs lora_gateway | tail -50
+   ```
+
+2. **Verify configuration:**
+   ```bash
+   grep -E "TESTING_MODE|SIMULATE_DATA|SERIAL_PORT" .env
+   ```
+
+3. **Test individual components:**
+   ```bash
+   curl http://localhost:5000/health
+   ```
+
+4. **Create GitHub issue** with:
+   - System information (OS, Docker version)
+   - Complete error logs
+   - Configuration (without passwords)
+   - Steps to reproduce
 
 ---
 
@@ -804,6 +1235,169 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Tailwind CSS** - Utility-first CSS framework
 - **Flask** - Lightweight web framework
 - **Redis** - In-memory data caching
+
+---
+
+## 📋 Makefile Commands Reference
+
+For users who have `make` installed, here's a comprehensive reference of all available commands:
+
+### **🚀 Quick Start Commands**
+```bash
+make help          # Show all available commands with descriptions
+make quick-start    # Build and start in testing mode (fastest way to get started)
+make dev            # Alias for test-mode (development environment)
+```
+
+### **🏗️ Build and Deployment**
+```bash
+make build          # Build all Docker images
+make up             # Start all services in background
+make down           # Stop all services
+make restart        # Restart all services
+```
+
+### **🧪 Testing Mode Commands**
+```bash
+make test-mode      # Start in testing mode (no USB device required)
+make test-logs      # Show logs for testing services (lora_gateway + flask_ui)
+make test-status    # Check status of testing services with health check
+```
+
+### **🏭 Production Mode Commands**
+```bash
+make prod-mode      # Switch to production mode (USB device required)
+# Note: Automatically creates .env.prod, switches config, and deploys with USB mounting
+```
+
+### **📊 Monitoring and Logs**
+```bash
+make logs           # Show logs for all services (follow mode)
+make health         # Check health of all services with API test
+make status         # Show container status (docker compose ps)
+make debug          # Show comprehensive debugging information
+```
+
+### **🗄️ Database Operations**
+```bash
+make shell-db       # Connect to PostgreSQL database shell
+make show-data      # Display recent sensor data from database
+make backup         # Create timestamped database backup
+make reset-db       # ⚠️ DANGEROUS: Delete all data and reset database
+```
+
+### **🔄 Redis Operations**
+```bash
+make shell-redis    # Connect to Redis shell
+make show-redis     # Show current Redis data (latest_status)
+```
+
+### **🧹 Maintenance and Cleanup**
+```bash
+make clean          # Clean up Docker resources (containers, images, networks)
+make reset          # Complete system reset (stops services, removes volumes)
+```
+
+### **🔍 Development and Testing**
+```bash
+make test           # Run Python tests with coverage
+make lint           # Run code linting (flake8, mypy)
+make format         # Format code with Black
+```
+
+### **📈 Monitoring Stack**
+```bash
+make monitoring     # Start with Grafana and Prometheus monitoring
+# Access: Grafana at http://localhost:3000, Prometheus at http://localhost:9090
+```
+
+### **🔧 Troubleshooting Commands**
+```bash
+make debug          # Comprehensive system debugging information
+make health         # Test all service endpoints and connections
+make test-status    # Check if services are responding correctly
+```
+
+### **📦 Data Management**
+```bash
+make show-data      # View recent pond and station metrics
+make show-redis     # View current cached status
+make backup         # Create database backup with timestamp
+```
+
+### **🎯 Most Common Workflows**
+
+#### **First Time Setup (Testing)**
+```bash
+make quick-start    # One command to build and start everything
+```
+
+#### **Development Workflow**
+```bash
+make dev            # Start development environment
+make test-logs      # Monitor logs during development
+make show-data      # Check if data is being generated
+```
+
+#### **Production Deployment**
+```bash
+make build          # Build latest images
+make prod-mode      # Deploy to production with hardware
+make health         # Verify everything is working
+```
+
+#### **Troubleshooting Workflow**
+```bash
+make debug          # Get system overview
+make logs           # Check service logs
+make health         # Test all connections
+make restart        # Restart if needed
+```
+
+#### **Maintenance Workflow**
+```bash
+make backup         # Backup data before maintenance
+make clean          # Clean up old resources
+make build          # Rebuild with latest changes
+make up             # Restart services
+```
+
+### **⚠️ Important Notes**
+
+- **Docker Compose Auto-Detection**: All `make` commands automatically detect whether you have `docker compose` (modern) or `docker-compose` (legacy)
+- **Environment Management**: `make test-mode` and `make prod-mode` automatically handle `.env` file switching
+- **USB Device Requirements**: `make prod-mode` requires USB device at `/dev/ttyUSB0` with proper permissions
+- **Data Safety**: Commands like `make reset-db` and `make clean` will delete data - use with caution
+- **Testing Mode**: Most commands work in testing mode without any hardware requirements
+
+### **🎓 Usage Examples**
+
+```bash
+# Complete setup from scratch
+make quick-start
+
+# Switch to production mode
+make prod-mode
+
+# Monitor system in real-time
+make logs
+
+# Troubleshoot issues
+make debug
+make health
+
+# Backup before updates
+make backup
+git pull
+make build
+make up
+
+# Clean development environment
+make clean
+make quick-start
+```
+
+> **💡 Tip**: Run `make help` anytime to see all available commands with descriptions. The Makefile is designed to make PondMonitor management as simple as possible!
 
 ---
 
