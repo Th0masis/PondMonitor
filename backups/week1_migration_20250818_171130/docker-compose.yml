@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  flask_ui:
+    build:
+      context: .
+      dockerfile: dockerfile.flask_ui
+    ports:
+      - "${FLASK_PORT:-5000}:5000"
+    volumes:
+      - ./UI:/app
+      - ./logs:/app/logs
+    environment:
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - PG_HOST=${PG_HOST:-timescaledb}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - WEATHER_LAT=${WEATHER_LAT:-49.6265900}
+      - WEATHER_LON=${WEATHER_LON:-18.3016172}
+      - WEATHER_ALT=${WEATHER_ALT:-350}
+      - USER_AGENT=${USER_AGENT:-PondMonitor/1.0 (pond@monitor.cz)}
+      - POSTGRES_USER=${POSTGRES_USER:-pond_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secretpassword}
+      - POSTGRES_DB=${POSTGRES_DB:-pond_data}
+      - PG_PORT=${PG_PORT:-5432}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+    depends_on:
+      redis:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # LoRa Gateway with conditional device mounting and testing mode
+  lora_gateway:
+    build:
+      context: .
+      dockerfile: dockerfile.gateway
+    # Only mount device if it exists and not in testing mode
+    devices: []
+    volumes:
+      - ./logs:/app/logs
+    environment:
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - PG_HOST=${PG_HOST:-timescaledb}
+      - SERIAL_PORT=${SERIAL_PORT:-/dev/ttyUSB0}
+      - BAUD_RATE=${BAUD_RATE:-9600}
+      - RETRY_DELAY=${RETRY_DELAY:-5}
+      - MAX_RETRIES=${MAX_RETRIES:-3}
+      - TESTING_MODE=${TESTING_MODE:-true}
+      - SIMULATE_DATA=${SIMULATE_DATA:-true}
+      - POSTGRES_USER=${POSTGRES_USER:-pond_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secretpassword}
+      - POSTGRES_DB=${POSTGRES_DB:-pond_data}
+      - PG_PORT=${PG_PORT:-5432}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+    depends_on:
+      redis:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-pond_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secretpassword}
+      - POSTGRES_DB=${POSTGRES_DB:-pond_data}
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./db/init/init_pondmonitor.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./db/backups:/backups
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pond_user} -d ${POSTGRES_DB:-pond_data}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Optional: Add monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+
+volumes:
+  timescale_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    name: pondmonitor_network

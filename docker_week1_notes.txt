@@ -1,0 +1,12 @@
+
+# Week 1 Refactoring - Additional dependencies
+# Add these to your existing Dockerfile requirements.txt installation
+
+# Note: Your existing Docker setup doesn't need to change!
+# The Flask app remains in UI/ directory, but now imports services from parent directory.
+
+# For development/testing (optional)
+# RUN pip install --no-cache-dir pytest pytest-cov black flake8 mypy
+
+# For enhanced export functionality
+# pandas and openpyxl are already in requirements.txt
