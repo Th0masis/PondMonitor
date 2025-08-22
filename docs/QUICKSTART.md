@@ -235,10 +235,47 @@ docker compose logs flask_ui || docker-compose logs flask_ui
 curl -I http://localhost:5000
 ```
 
+## 🧪 **Testing & Development**
+
+### **Run Unit Tests**
+```bash
+# Basic test run
+python -m pytest tests/ -v
+
+# With coverage report
+python -m pytest tests/ -v --cov=. --cov-report=html
+
+# Using Make
+make test
+```
+
+### **Testing Scripts**
+```bash
+# Comprehensive test suite
+chmod +x scripts/test_week1.sh
+./scripts/test_week1.sh
+
+# Complete testing environment setup (alternative to manual setup above)
+chmod +x scripts/start-testing.sh
+./scripts/start-testing.sh
+```
+
+### **Useful Testing Commands**
+```bash
+# View test logs
+make test-logs
+
+# Check test environment status
+make test-status
+
+# Show recent test data
+make show-data
+```
+
 ## 📚 **Further Reading**
 
+- **Complete Testing Guide:** [DEVELOPMENT.md](DEVELOPMENT.md)
 - **Complete Feature Tour:** [USER_GUIDE.md](USER_GUIDE.md)
 - **Production Setup:** [DEPLOYMENT.md](DEPLOYMENT.md)
-- **Development Setup:** [DEVELOPMENT.md](DEVELOPMENT.md)
 - **API Reference:** [API.md](API.md)
 - **Troubleshooting:** [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

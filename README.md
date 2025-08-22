@@ -44,6 +44,44 @@ chmod +x start-testing.sh
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## 🧪 Testing
+
+PondMonitor includes comprehensive testing infrastructure for development and CI/CD.
+
+### **Quick Test Commands**
+
+```bash
+# Run all unit tests
+python -m pytest tests/ -v
+
+# Run tests with coverage
+python -m pytest tests/ -v --cov=. --cov-report=html
+
+# Use Make commands
+make test          # Run pytest tests
+make test-mode     # Start testing environment
+make quick-start   # Build and start in testing mode
+```
+
+### **Testing Scripts**
+
+```bash
+# Automated testing environment setup
+./scripts/start-testing.sh
+
+# Comprehensive test suite with integration tests
+./scripts/test_week1.sh
+```
+
+### **Testing Features**
+- **Unit Tests**: pytest with comprehensive coverage
+- **Integration Tests**: Database, weather API, export services
+- **Simulated Data**: Realistic sensor data without hardware
+- **Docker Testing**: Complete containerized test environment
+- **CI/CD Ready**: Automated testing workflows
+
+See [Development Guide](docs/DEVELOPMENT.md) for complete testing documentation.
+
 ## 📖 Documentation
 
 **Complete documentation is available in the [`docs/`](docs/) directory:**
