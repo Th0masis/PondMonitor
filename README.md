@@ -96,6 +96,7 @@ See [Development Guide](docs/DEVELOPMENT.md) for complete testing documentation.
 | [📱 User Guide](docs/USER_GUIDE.md) | Web interface usage guide |
 | [🛠️ Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and solutions |
 | [⚒️ Makefile Commands](docs/MAKEFILE.md) | Build automation reference |
+| [📝 **Changelog**](CHANGELOG.md) | **Development roadmap and major changes** |
 
 ## 🎯 Use Cases
 
