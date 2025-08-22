@@ -296,7 +296,7 @@ class Validator:
         
         if errors:
             raise ValidationError(
-                "Sensor data validation failed",
+                f"Sensor data validation failed: {'; '.join(errors)}",
                 details={'errors': errors, 'data': data}
             )
         

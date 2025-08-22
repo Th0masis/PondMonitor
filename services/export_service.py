@@ -362,8 +362,13 @@ class ExportService:
             # Sort by timestamp
             all_records.sort(key=lambda x: x.get('timestamp', ''))
             
+            # Collect all unique field names from all records
+            fieldnames = set()
+            for record in all_records:
+                fieldnames.update(record.keys())
+            fieldnames = sorted(fieldnames)  # Sort for consistent order
+            
             # Write CSV
-            fieldnames = list(all_records[0].keys())
             writer = csv.DictWriter(output, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(all_records)

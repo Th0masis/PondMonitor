@@ -104,7 +104,10 @@ class TestDatabaseService:
         
         # Mock the connection pool
         db_service._pool = Mock()
+        db_service._pool._pool = [Mock(), Mock()]  # Mock pool list for health check
         mock_conn = Mock()
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
         db_service._pool.getconn.return_value = mock_conn
         db_service._pool.putconn = Mock()
         
@@ -146,7 +149,10 @@ class TestDatabaseService:
         
         # Setup mock cursor
         mock_cursor = Mock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor_context = Mock()
+        mock_cursor_context.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor_context.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor_context
         mock_cursor.description = [('id',), ('name',)]
         mock_cursor.fetchall.return_value = [(1, 'test'), (2, 'test2')]
         
@@ -163,7 +169,10 @@ class TestDatabaseService:
         
         # Mock successful insert
         mock_cursor = Mock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor_context = Mock()
+        mock_cursor_context.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor_context.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor_context
         
         # Test insert
         success = db_service.insert_pond_metrics(150.5, 2.3)
@@ -179,7 +188,10 @@ class TestDatabaseService:
         
         # Mock successful health check
         mock_cursor = Mock()
-        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        mock_cursor_context = Mock()
+        mock_cursor_context.__enter__ = Mock(return_value=mock_cursor)
+        mock_cursor_context.__exit__ = Mock(return_value=None)
+        mock_conn.cursor.return_value = mock_cursor_context
         mock_cursor.fetchone.return_value = (1,)
         
         health = db_service.health_check()
