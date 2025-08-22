@@ -2,9 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY UI/ /app/
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "app.py"]
+# Copy all project files to maintain proper import structure
+COPY config.py .
+COPY logging_config.py .
+COPY database.py .
+COPY utils.py .
+COPY services/ ./services/
+COPY UI/ ./UI/
+
+# Run the refactored app from project root
+CMD ["python", "UI/app.py"]

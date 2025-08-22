@@ -1,6 +1,9 @@
 #!/bin/bash
 # Week 1 Testing Commands
 
+# Change to project root directory
+cd "$(dirname "$0")/.."
+
 echo "🧪 Running Week 1 Tests"
 
 # Run unit tests

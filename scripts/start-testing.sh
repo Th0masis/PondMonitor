@@ -3,6 +3,9 @@
 
 set -e
 
+# Change to project root directory
+cd "$(dirname "$0")/.."
+
 echo "🧪 PondMonitor Testing Mode Setup"
 echo "================================="
 
