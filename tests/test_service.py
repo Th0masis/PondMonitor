@@ -1,14 +1,38 @@
 """
-PondMonitor Test Suite - Week 1 Services
+PondMonitor Test Suite - Comprehensive Service Tests
 
-Comprehensive unit tests for the refactored services:
-- Configuration system
-- Database service
-- Utilities and validation
-- Export service
-- Weather service
+Unit tests covering all major PondMonitor components:
+- Configuration system with environment variable handling
+- Database service layer with connection pooling and health checks
+- Data validation utilities and error handling
+- Export service with multiple format support (CSV, JSON, Excel)
+- Weather service integration with met.no API
+- Flask decorators and request handling
+- Integration tests for service interoperability
 
-Run with: python -m pytest tests/ -v --cov=.
+Usage Examples:
+  # Run all tests
+  python -m pytest tests/ -v
+
+  # Run with coverage
+  python -m pytest tests/ -v --cov=. --cov-report=html
+
+  # Run specific test class
+  python -m pytest tests/test_service.py::TestPondMonitorConfig -v
+
+  # Run specific test method
+  python -m pytest tests/test_service.py::TestPondMonitorConfig::test_config_initialization -v
+
+  # Using Make
+  make test
+
+  # Full test suite with integration tests
+  ./scripts/test_week1.sh
+
+Test Configuration:
+  Uses .env.testing for isolated test environment
+  No external dependencies or hardware required
+  Mocked services for reliable, fast execution
 """
 
 import pytest
