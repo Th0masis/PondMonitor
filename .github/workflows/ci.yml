@@ -152,23 +152,23 @@ jobs:
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Build and push Flask UI
+    - name: Build Flask UI
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./docker/dockerfile.flask_ui
-        push: true
+        push: false
         tags: ${{ steps.meta-ui.outputs.tags }}
         labels: ${{ steps.meta-ui.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Build and push LoRa Gateway
+    - name: Build LoRa Gateway
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./docker/dockerfile.gateway
-        push: true
+        push: false
         tags: ${{ steps.meta-gateway.outputs.tags }}
         labels: ${{ steps.meta-gateway.outputs.labels }}
         cache-from: type=gha
