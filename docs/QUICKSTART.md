@@ -4,6 +4,8 @@
 
 Get PondMonitor running in under 5 minutes with testing mode (no hardware required).
 
+> **🎓 Study Project**: This setup demonstrates modern IoT development practices including Docker containerization, microservices architecture, and automated testing workflows.
+
 ### **Prerequisites**
 
 - **Docker:** Version 20.10+ with Docker Compose

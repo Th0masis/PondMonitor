@@ -9,6 +9,18 @@
 
 > **PondMonitor** is a comprehensive IoT platform for environmental monitoring using LoRa wireless sensors, real-time web dashboards, weather integration, and time-series data analysis.
 
+## 📚 **Project Disclaimer**
+
+> **🎓 Educational Project**: This project serves as a learning platform to explore modern development practices, IoT technologies, and software engineering processes. It was developed in collaboration with Claude AI to demonstrate best practices in:
+> 
+> - **Modern Python Architecture** - Modular design patterns and service abstractions
+> - **CI/CD Pipeline Development** - GitHub Actions workflows and automation
+> - **Docker Containerization** - Multi-service orchestration and deployment
+> - **IoT Integration** - LoRa wireless communication and sensor data processing
+> - **Testing Infrastructure** - Comprehensive test suites and quality assurance
+> 
+> The project combines practical IoT monitoring capabilities with educational value for developers learning these technologies and methodologies.
+
 ## 🚀 Quick Start
 
 Get up and running in under 5 minutes:
@@ -96,6 +108,7 @@ See [Development Guide](docs/DEVELOPMENT.md) for complete testing documentation.
 | [📱 User Guide](docs/USER_GUIDE.md) | Web interface usage guide |
 | [🛠️ Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and solutions |
 | [⚒️ Makefile Commands](docs/MAKEFILE.md) | Build automation reference |
+| [🔄 CI/CD Pipeline](docs/CI_CD.md) | GitHub Actions workflows and automation |
 | [📝 **Changelog**](CHANGELOG.md) | **Development roadmap and major changes** |
 
 ## 🎯 Use Cases

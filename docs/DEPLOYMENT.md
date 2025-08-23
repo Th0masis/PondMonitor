@@ -4,6 +4,8 @@
 
 Comprehensive guide for deploying PondMonitor in production with real LoRa hardware. This guide is designed for users who don't have `make` installed or prefer manual setup.
 
+> **🎓 Study Note**: This deployment demonstrates production-ready IoT system deployment with real hardware integration, demonstrating the transition from simulated development environments to operational systems.
+
 ## 📋 Prerequisites
 
 ### **System Requirements**

@@ -4,6 +4,8 @@
 
 Complete guide for setting up PondMonitor for development, testing, and contribution.
 
+> **🎓 Educational Focus**: This development guide supports learning modern software engineering practices including modular architecture, containerization, CI/CD pipelines, and collaborative development with AI assistance.
+
 ## 🚀 Quick Development Setup
 
 ```bash
@@ -107,6 +109,21 @@ Testing uses the `.env.testing` file which provides:
 - **Localhost Services**: Uses localhost instead of Docker service names
 - **Test Secret Key**: Safe for testing environment
 - **Disabled Hardware**: No USB device required
+
+### **CI/CD Integration**
+
+PondMonitor includes comprehensive GitHub Actions workflows:
+- **Automated Testing**: Runs on every PR and push to main branches
+- **Security Scanning**: CodeQL, dependency checks, Docker security scans
+- **Multi-platform Builds**: AMD64 and ARM64 Docker images
+- **Release Automation**: Semantic versioning with auto-generated changelogs
+- **Quality Gates**: Code formatting, linting, type checking
+
+**CI/CD Scripts** (in `scripts/ci/`):
+- `test.sh` - Comprehensive test runner with coverage
+- `build.sh` - Multi-platform Docker builds
+- `quality-check.sh` - Code quality validation
+- `health-check.sh` - Deployment validation
 
 ```bash
 # Use testing configuration
