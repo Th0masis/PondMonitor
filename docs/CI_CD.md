@@ -33,6 +33,7 @@ scripts/ci/
 1. **Test Suite** - Multi-version Python testing (3.11, 3.12)
 2. **Build Images** - Multi-platform Docker builds
 3. **Quality Gate** - Validation and approval gates
+4. **Deploy Testing** - Automatic deployment to testing PC (self-hosted runner)
 
 **Key Features:**
 - **Test Matrix**: Python 3.11 and 3.12 compatibility
@@ -205,6 +206,21 @@ LOAD_TEST=true ./scripts/ci/health-check.sh
 
 ## 🔧 Configuration for Your Project
 
+### **Self-hosted Runner Setup**
+
+For automatic deployment to testing PC:
+
+1. **Install GitHub Runner:**
+   - Go to: `https://github.com/YourUsername/PondMonitor/settings/actions/runners`
+   - Click "New self-hosted runner"
+   - Follow OS-specific installation instructions
+   - Use default labels or add `testing-deploy`
+
+2. **Testing PC Requirements:**
+   - Docker and Docker Compose installed
+   - Git configured with repository access
+   - Runner service running as background process
+
 ### **GitHub Secrets Required**
 
 For full CI/CD functionality, configure these GitHub repository secrets:
@@ -237,6 +253,13 @@ SLACK_WEBHOOK=<your-slack-webhook>  # For notifications
 - **Security Vulnerabilities**: Risk assessment
 - **Performance Benchmarks**: Application health
 
+### **Deployment Flow**
+
+1. **Developer pushes** to `refactor/milestone1-foundation`
+2. **GitHub Actions runs** tests and builds
+3. **Self-hosted runner** automatically deploys to testing PC using Docker Compose
+4. **Services start** with testing configuration (.env.testing)
+
 ## 🎓 Learning Outcomes
 
 This CI/CD implementation demonstrates:
@@ -245,6 +268,7 @@ This CI/CD implementation demonstrates:
 - **Security Integration**: Vulnerability scanning and secret detection
 - **Quality Assurance**: Comprehensive validation and quality gates
 - **Container Orchestration**: Docker-based deployment strategies
+- **Self-hosted Deployment**: Local testing environment automation
 - **Collaborative Development**: PR validation and code review automation
 
 ---
