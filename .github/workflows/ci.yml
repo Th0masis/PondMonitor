@@ -196,3 +196,29 @@ jobs:
     - name: Quality gate passed
       run: |
         echo "✅ All quality checks passed!"
+
+  deploy-testing:
+    name: Deploy to Testing PC
+    runs-on: self-hosted
+    needs: [test, build]
+    if: github.ref == 'refs/heads/refactor/milestone1-foundation' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Stop existing containers
+      run: |
+        cd docker
+        docker-compose down || true
+    
+    - name: Pull latest images and deploy
+      run: |
+        cd docker
+        docker-compose pull || true
+        docker-compose up -d --build
+    
+    - name: Wait for services to be healthy
+      run: |
+        cd docker
+        docker-compose ps
+        echo "✅ Deployment completed!"
