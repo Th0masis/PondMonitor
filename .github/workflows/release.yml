@@ -1,0 +1,284 @@
+name: Release Automation
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_UI: ${{ github.repository }}/flask-ui
+  IMAGE_NAME_GATEWAY: ${{ github.repository }}/lora-gateway
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Validate tag format
+      id: version
+      run: |
+        TAG=${GITHUB_REF#refs/tags/}
+        echo "Tag: $TAG"
+        
+        # Check if tag matches semantic versioning
+        if [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+          echo "✅ Valid semantic version tag: $TAG"
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Check if it's a prerelease
+          if [[ $TAG =~ -[a-zA-Z] ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "📦 Prerelease version detected"
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "🚀 Stable release version detected"
+          fi
+        else
+          echo "❌ Invalid tag format: $TAG"
+          echo "Tag must follow semantic versioning: v1.0.0 or v1.0.0-alpha.1"
+          exit 1
+        fi
+
+    - name: Check if CHANGELOG exists and updated
+      run: |
+        if [ ! -f CHANGELOG.md ]; then
+          echo "⚠️ CHANGELOG.md not found, creating minimal changelog"
+        else
+          echo "✅ CHANGELOG.md found"
+        fi
+
+  test-release:
+    name: Test Release Build
+    runs-on: ubuntu-latest
+    needs: validate-release
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_USER: pond_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: pond_data
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Set up test environment
+      run: |
+        cat > .env << EOF
+        POSTGRES_USER=pond_user
+        POSTGRES_PASSWORD=test_password
+        POSTGRES_DB=pond_data
+        POSTGRES_PORT=5432
+        PG_HOST=localhost
+        REDIS_HOST=localhost
+        REDIS_PORT=6379
+        TESTING_MODE=true
+        SIMULATE_DATA=true
+        FLASK_ENV=testing
+        FLASK_SECRET_KEY=test-secret-key
+        EOF
+
+    - name: Run comprehensive tests
+      run: |
+        python -m pytest tests/ -v --cov=. --cov-report=xml
+
+    - name: Test Docker builds
+      run: |
+        docker build -f docker/dockerfile.flask_ui -t test-ui:${{ needs.validate-release.outputs.version }} .
+        docker build -f docker/dockerfile.gateway -t test-gateway:${{ needs.validate-release.outputs.version }} .
+
+  build-release:
+    name: Build Release Images
+    runs-on: ubuntu-latest
+    needs: [validate-release, test-release]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata for Flask UI
+      id: meta-ui
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_UI }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Extract metadata for LoRa Gateway
+      id: meta-gateway
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_GATEWAY }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Flask UI
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/dockerfile.flask_ui
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta-ui.outputs.tags }}
+        labels: ${{ steps.meta-ui.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push LoRa Gateway
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/dockerfile.gateway
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta-gateway.outputs.tags }}
+        labels: ${{ steps.meta-gateway.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, test-release, build-release]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        TAG=${GITHUB_REF#refs/tags/}
+        VERSION=${{ needs.validate-release.outputs.version }}
+        
+        echo "Generating changelog for version $VERSION..."
+        
+        # Get previous tag
+        PREV_TAG=$(git tag --sort=-version:refname | grep -A1 "^$TAG$" | tail -1)
+        
+        if [ -z "$PREV_TAG" ]; then
+          PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          echo "No previous tag found, using first commit"
+        fi
+        
+        echo "Changes since $PREV_TAG:"
+        
+        # Generate release notes
+        cat > release-notes.md << EOF
+        ## PondMonitor $VERSION
+        
+        ### 🚀 What's New
+        
+        $(git log --pretty=format:"- %s" ${PREV_TAG}..HEAD | head -20)
+        
+        ### 🐳 Docker Images
+        
+        - \`ghcr.io/${{ github.repository }}/flask-ui:$VERSION\`
+        - \`ghcr.io/${{ github.repository }}/lora-gateway:$VERSION\`
+        
+        ### 📦 Quick Start
+        
+        \`\`\`bash
+        # Update your docker-compose.yml to use version $VERSION
+        git checkout $TAG
+        ./scripts/start-testing.sh
+        \`\`\`
+        
+        ### 🔍 Full Changelog
+        
+        **Commits in this release:**
+        $(git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD)
+        EOF
+        
+        echo "Generated release notes:"
+        cat release-notes.md
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: PondMonitor ${{ needs.validate-release.outputs.version }}
+        body_path: release-notes.md
+        prerelease: ${{ needs.validate-release.outputs.prerelease == 'true' }}
+        draft: false
+        files: |
+          docker/docker-compose.yml
+          docker/docker-compose.prod.yml
+        generate_release_notes: true
+
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release]
+    if: success()
+
+    steps:
+    - name: Release notification
+      run: |
+        echo "## 🎉 Release ${{ needs.validate-release.outputs.version }} Published!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🐳 Docker Images Available:" >> $GITHUB_STEP_SUMMARY
+        echo "- \`ghcr.io/${{ github.repository }}/flask-ui:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- \`ghcr.io/${{ github.repository }}/lora-gateway:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Installation:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "git checkout ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "./scripts/start-testing.sh" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
