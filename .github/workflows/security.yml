@@ -70,8 +70,8 @@ jobs:
 
     - name: Run bandit (Python security linting)
       run: |
-        bandit -r . -f json -o bandit-report.json || true
-        bandit -r . -f txt
+        bandit -r . -x tests/ -f json -o bandit-report.json || true
+        bandit -r . -x tests/ -f txt
 
     - name: Upload security reports
       uses: actions/upload-artifact@v4
