@@ -237,9 +237,12 @@ class LoRaGateway:
     def process_data(self, raw_data: str = None) -> Optional[Dict[str, Any]]:
         """Process and validate incoming data (or generate simulated data)"""
         try:
-            if self.config['simulate_data'] or raw_data is None:
-                data = self.generate_simulated_data()
-                logger.debug("📊 Generated simulated data")
+            if raw_data is None:
+                if self.config['simulate_data']:
+                    data = self.generate_simulated_data()
+                    logger.debug("📊 Generated simulated data")
+                else:
+                    return None
             else:
                 data = json.loads(raw_data)
             

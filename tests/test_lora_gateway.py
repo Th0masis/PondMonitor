@@ -11,6 +11,9 @@ from LoraGateway import LoRaGateway
 
 class TestLoRaGateway(unittest.TestCase):
     def setUp(self):
+        # Disable simulation for deterministic testing
+        os.environ['TESTING_MODE'] = 'false'
+        os.environ['SIMULATE_DATA'] = 'false'
         self.gateway = LoRaGateway()
     
     def test_validate_data_valid(self):

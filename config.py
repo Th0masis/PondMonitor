@@ -443,12 +443,16 @@ def create_test_config(**overrides) -> PondMonitorConfig:
         os.environ['FLASK_TESTING'] = 'true'
         os.environ['FLASK_SECRET_KEY'] = 'test-secret-key'
         os.environ['FLASK_ENV'] = 'testing'
+        os.environ['PG_HOST'] = 'timescaledb'
+        os.environ['REDIS_HOST'] = 'redis'
         
         test_config = PondMonitorConfig()
         test_config.flask.testing = True
         test_config.flask.secret_key = "test-secret-key"
         test_config.flask.environment = "testing"
         test_config.serial.testing_mode = True
+        test_config.database.host = "timescaledb"
+        test_config.redis.host = "redis"
         return test_config
     finally:
         # Restore original environment
