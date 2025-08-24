@@ -177,68 +177,48 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Extract metadata for Flask UI
-      id: meta-ui
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_UI }}
-        tags: |
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=semver,pattern={{major}}
-          type=raw,value=latest,enable={{is_default_branch}}
-
-    - name: Extract metadata for LoRa Gateway
-      id: meta-gateway
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_GATEWAY }}
-        tags: |
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=semver,pattern={{major}}
-          type=raw,value=latest,enable={{is_default_branch}}
-
-    - name: Build and push Flask UI
+    - name: Build Flask UI (local only)
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./docker/dockerfile.flask_ui
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: ${{ steps.meta-ui.outputs.tags }}
-        labels: ${{ steps.meta-ui.outputs.labels }}
+        platforms: linux/amd64
+        push: false
+        tags: pondmonitor-flask-ui:${{ needs.validate-release.outputs.version }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Build and push LoRa Gateway
+    - name: Build LoRa Gateway (local only)  
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./docker/dockerfile.gateway
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: ${{ steps.meta-gateway.outputs.tags }}
-        labels: ${{ steps.meta-gateway.outputs.labels }}
+        platforms: linux/amd64
+        push: false
+        tags: pondmonitor-gateway:${{ needs.validate-release.outputs.version }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
+    - name: Test built images
+      run: |
+        echo "✅ Docker images built successfully for release ${{ needs.validate-release.outputs.version }}"
+        docker images | grep pondmonitor
 
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [validate-release, test-release, build-release]
+    needs: [validate-release, test-release, build-release, create-release-package]
 
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - name: Download release packages
+      uses: actions/download-artifact@v4
+      with:
+        name: release-packages
+        path: ./release-packages
 
     - name: Generate changelog
       id: changelog
@@ -266,18 +246,28 @@ jobs:
         
         $(git log --pretty=format:"- %s" ${PREV_TAG}..HEAD | head -20)
         
-        ### 🐳 Docker Images
+        ### 📦 Installation Options
         
-        - \`ghcr.io/${{ github.repository }}/flask-ui:$VERSION\`
-        - \`ghcr.io/${{ github.repository }}/lora-gateway:$VERSION\`
+        **For End Users (Production Deployment):**
+        1. Download \`pondmonitor-$VERSION.tar.gz\` or \`pondmonitor-$VERSION.zip\`
+        2. Extract the package
+        3. Run: \`docker-compose up -d\`
         
-        ### 📦 Quick Start
-        
+        **For Developers (Full Repository):**
         \`\`\`bash
-        # Update your docker-compose.yml to use version $VERSION
+        git clone https://github.com/${{ github.repository }}.git
+        cd PondMonitor
         git checkout $TAG
         ./scripts/start-testing.sh
         \`\`\`
+        
+        ### 🏗️ What's Included
+        
+        - ✅ Complete source code in organized \`src/\` structure
+        - ✅ Docker configuration for containerized deployment  
+        - ✅ Split requirements for different environments
+        - ✅ Comprehensive documentation and setup guides
+        - ✅ Testing scripts and automation tools
         
         ### 🔍 Full Changelog
         
@@ -297,6 +287,8 @@ jobs:
         prerelease: ${{ needs.validate-release.outputs.prerelease == 'true' }}
         draft: false
         files: |
+          release-packages/pondmonitor-${{ needs.validate-release.outputs.version }}.tar.gz
+          release-packages/pondmonitor-${{ needs.validate-release.outputs.version }}.zip
           docker/docker-compose.yml
           docker/docker-compose.prod.yml
         generate_release_notes: true
@@ -312,12 +304,17 @@ jobs:
       run: |
         echo "## 🎉 Release ${{ needs.validate-release.outputs.version }} Published!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🐳 Docker Images Available:" >> $GITHUB_STEP_SUMMARY
-        echo "- \`ghcr.io/${{ github.repository }}/flask-ui:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- \`ghcr.io/${{ github.repository }}/lora-gateway:${{ needs.validate-release.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Download Options:" >> $GITHUB_STEP_SUMMARY
+        echo "- **End Users**: Download \`pondmonitor-${{ needs.validate-release.outputs.version }}.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Developers**: \`git clone\` and \`git checkout ${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📦 Installation:" >> $GITHUB_STEP_SUMMARY
+        echo "### 🚀 Quick Start:" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "git checkout ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "./scripts/start-testing.sh" >> $GITHUB_STEP_SUMMARY
+        echo "# Extract downloaded package and run:" >> $GITHUB_STEP_SUMMARY
+        echo "docker-compose up -d" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🏗️ New Project Structure:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Organized \`src/\` directory structure" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Split requirements for different environments" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Clean deployment packages for end users" >> $GITHUB_STEP_SUMMARY
