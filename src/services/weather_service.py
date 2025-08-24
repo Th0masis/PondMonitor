@@ -25,8 +25,8 @@ from dataclasses import dataclass, asdict
 import requests
 import redis
 
-from config import WeatherConfig, RedisConfig
-from utils import ServiceError, ValidationError, RateLimiter
+from ..config import WeatherConfig, RedisConfig
+from ..utils import ServiceError, ValidationError, RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -650,7 +650,7 @@ def create_weather_service(
 
 if __name__ == "__main__":
     # Example usage and testing
-    from config import WeatherConfig, RedisConfig
+    from ..config import WeatherConfig, RedisConfig
     
     # Create test configuration
     weather_config = WeatherConfig(

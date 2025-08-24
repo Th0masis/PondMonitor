@@ -5,13 +5,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all project files to maintain proper import structure
-COPY config.py .
-COPY logging_config.py .
-COPY database.py .
-COPY utils.py .
-COPY services/ ./services/
-COPY UI/ ./UI/
+# Copy source code with new structure
+COPY src/ ./src/
+COPY config/ ./config/
 
 # Run the refactored app from project root
-CMD ["python", "UI/app.py"]
+CMD ["python", "src/web/app.py"]

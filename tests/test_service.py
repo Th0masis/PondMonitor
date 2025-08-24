@@ -44,15 +44,15 @@ from unittest.mock import Mock, patch, MagicMock
 from io import StringIO
 
 # Import our modules
-from config import PondMonitorConfig, DatabaseConfig, WeatherConfig, create_test_config
-from database import DatabaseService, QueryResult
-from utils import (
+from src.config import PondMonitorConfig, DatabaseConfig, WeatherConfig, create_test_config
+from src.database import DatabaseService, QueryResult
+from src.utils import (
     Validator, ValidationError, PondMonitorError, 
     calculate_battery_percentage, get_signal_quality,
     handle_errors, log_requests, RateLimiter
 )
-from services.export_service import ExportService, ExportConfig, ExportMetadata
-from services.weather_service import WeatherService, WeatherData, WeatherIconMapper
+from src.services.export_service import ExportService, ExportConfig, ExportMetadata
+from src.services.weather_service import WeatherService, WeatherData, WeatherIconMapper
 
 
 class TestPondMonitorConfig:
@@ -444,7 +444,7 @@ class TestWeatherService:
     @pytest.fixture
     def mock_weather_service(self):
         """Create mock weather service"""
-        from config import WeatherConfig
+        from src.config import WeatherConfig
         
         config = WeatherConfig()
         service = WeatherService(config)
@@ -470,7 +470,7 @@ class TestWeatherService:
         symbol = WeatherIconMapper.guess_symbol(0.0, 10)  # No rain, clear
         assert symbol == 'clearsky_day'
     
-    @patch('services.weather_service.requests.get')
+    @patch('src.services.weather_service.requests.get')
     def test_weather_data_fetch(self, mock_get, mock_weather_service):
         """Test weather data fetching"""
         # Mock API response
@@ -590,12 +590,12 @@ class TestIntegration:
         config = create_test_config()
         
         # Test database service initialization
-        from database import DatabaseService
+        from src.database import DatabaseService
         db_service = DatabaseService(config.database)
         assert db_service.config == config.database
         
         # Test weather service initialization
-        from services.weather_service import WeatherService
+        from src.services.weather_service import WeatherService
         weather_service = WeatherService(config.weather, config.redis)
         assert weather_service.config == config.weather
     

@@ -24,7 +24,7 @@ import psycopg2.pool
 import psycopg2.extras
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-from config import DatabaseConfig
+from .config import DatabaseConfig
 
 logger = logging.getLogger(__name__)
 
@@ -678,7 +678,7 @@ def database_transaction():
 
 if __name__ == "__main__":
     # Example usage and testing
-    from config import DatabaseConfig
+    from .config import DatabaseConfig
     
     # Create test configuration
     config = DatabaseConfig(

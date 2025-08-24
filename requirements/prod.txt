@@ -1,0 +1,5 @@
+# Production-only dependencies
+-r base.txt
+
+# Production WSGI server optimizations
+gevent>=22.0.0

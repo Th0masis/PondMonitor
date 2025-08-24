@@ -26,7 +26,7 @@ logs: ## Show logs for all services
 # Testing mode commands
 test-mode: ## Start in testing mode (no USB device required)
 	@echo "🧪 Starting in TESTING MODE (no physical hardware required)"
-	@cp .env.testing .env
+	@cp config/.env.testing .env
 	$(DOCKER_COMPOSE) up -d
 	@echo "✅ PondMonitor is running in testing mode!"
 	@echo "📊 Simulated data is being generated every 30 seconds"
@@ -47,7 +47,7 @@ prod-mode: ## Switch to production mode (USB device required)
 	@cp .env .env.backup 2>/dev/null || true
 	@echo "TESTING_MODE=false" > .env.prod
 	@echo "SIMULATE_DATA=false" >> .env.prod
-	@cat .env.testing >> .env.prod
+	@cat config/.env.testing >> .env.prod
 	@sed -i 's/TESTING_MODE=true/TESTING_MODE=false/' .env.prod
 	@sed -i 's/SIMULATE_DATA=true/SIMULATE_DATA=false/' .env.prod
 	@cp .env.prod .env
@@ -61,11 +61,11 @@ test: ## Run tests
 	python -m pytest tests/ -v --cov=.
 
 lint: ## Run linting
-	flake8 *.py UI/
-	mypy *.py
+	flake8 src/
+	mypy src/
 
 format: ## Format code
-	black *.py UI/
+	black src/
 
 # Cleanup
 clean: ## Clean up Docker resources

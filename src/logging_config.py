@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-from config import LoggingConfig
+from .config import LoggingConfig
 
 
 class JSONFormatter(logging.Formatter):
@@ -533,7 +533,7 @@ class PerformanceLogger:
 
 # Example usage
 if __name__ == "__main__":
-    from config import LoggingConfig
+    from .config import LoggingConfig
     
     # Create test logging configuration
     config = LoggingConfig(

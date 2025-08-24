@@ -24,17 +24,17 @@ from flask import Flask, render_template, request, jsonify, g
 from collections import defaultdict
 from typing import Optional, Dict, Any, List
 
-# Import our new modular services (from parent directory)
+# Import our new modular services (using relative imports)
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from config import init_config, get_config
-from database import init_database, get_database
-from utils import handle_errors, log_requests, validate_json, Validator
-from services.export_service import create_export_service, ExportConfig
-from services.weather_service import create_weather_service
-from logging_config import setup_logging, get_logger, PerformanceLogger
+from src.config import init_config, get_config
+from src.database import init_database, get_database
+from src.utils import handle_errors, log_requests, validate_json, Validator
+from src.services.export_service import create_export_service, ExportConfig
+from src.services.weather_service import create_weather_service
+from src.logging_config import setup_logging, get_logger, PerformanceLogger
 
 # Initialize logger
 logger = get_logger(__name__)

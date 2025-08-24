@@ -39,8 +39,8 @@ except ImportError:
     OPENPYXL_AVAILABLE = False
     logging.warning("openpyxl not available, Excel export not supported")
 
-from database import DatabaseService
-from utils import ValidationError, DataError, sanitize_filename
+from ..database import DatabaseService
+from ..utils import ValidationError, DataError, sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -592,8 +592,8 @@ def create_export_service(db_service: DatabaseService) -> ExportService:
 
 if __name__ == "__main__":
     # Example usage and testing
-    from config import init_config, DatabaseConfig
-    from database import init_database
+    from ..config import init_config, DatabaseConfig
+    from ..database import init_database
     
     try:
         # Initialize services

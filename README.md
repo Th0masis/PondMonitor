@@ -23,14 +23,29 @@
 
 ## 🚀 Quick Start
 
-Get up and running in under 5 minutes:
+Choose your installation method:
+
+### **👥 For End Users (Production Deployment)**
+Download the latest stable release - contains only essential files:
 
 ```bash
-# Clone and start in testing mode (no hardware required)
+# Download latest release
+curl -L https://github.com/Th0masis/PondMonitor/releases/latest/download/pondmonitor-latest.tar.gz | tar -xz
+cd pondmonitor-*/
+docker-compose up -d
+
+# Access at http://localhost:5000
+```
+
+### **🧑‍💻 For Developers (Full Repository)**
+Clone the complete repository for development and contributions:
+
+```bash
+# Clone full repository (includes tests, CI/CD, dev tools)
 git clone https://github.com/Th0masis/PondMonitor.git
 cd PondMonitor
-chmod +x start-testing.sh
-./start-testing.sh
+chmod +x scripts/start-testing.sh
+./scripts/start-testing.sh
 
 # Access at http://localhost:5000
 ```
@@ -158,9 +173,18 @@ make clean
 
 ## 🏃‍♂️ Getting Started
 
-1. **For testing** (no hardware): [Quick Start Guide](docs/QUICKSTART.md)
-2. **For production** (with sensors): [Deployment Guide](docs/DEPLOYMENT.md) 
-3. **For development**: [Development Setup](docs/DEVELOPMENT.md)
+### **📥 What Should I Download?**
+
+| User Type | Method | What You Get | Best For |
+|-----------|--------|--------------|----------|
+| **End Users** | [📦 Release Download](https://github.com/Th0masis/PondMonitor/releases/latest) | Core app + Docker files only | Production deployment |
+| **Developers** | `git clone` | Everything (tests, CI/CD, dev tools) | Contributing, customizing |
+
+### **📋 Setup Guides**
+
+1. **🎯 Testing** (no hardware): [Quick Start Guide](docs/QUICKSTART.md)
+2. **🏭 Production** (with sensors): [Deployment Guide](docs/DEPLOYMENT.md) 
+3. **🧑‍💻 Development**: [Development Setup](docs/DEVELOPMENT.md)
 
 ## 🐛 Issues & Support
 

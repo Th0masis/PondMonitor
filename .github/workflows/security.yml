@@ -70,8 +70,8 @@ jobs:
 
     - name: Run bandit (Python security linting)
       run: |
-        bandit -r *.py services/ config.py database.py utils.py LoraGateway.py -f json -o bandit-report.json || true
-        bandit -r *.py services/ config.py database.py utils.py LoraGateway.py -f txt || true
+        bandit -r src/ -f json -o bandit-report.json || true
+        bandit -r src/ -f txt || true
 
     - name: Upload security reports
       uses: actions/upload-artifact@v4

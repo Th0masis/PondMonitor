@@ -15,9 +15,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY LoraGateway.py .
-COPY .env* ./
+# Copy application code with new structure
+COPY src/ ./src/
+COPY config/ ./config/
 
 # Create logs directory
 RUN mkdir -p logs && chown -R gateway:gateway /app
@@ -27,6 +27,6 @@ USER gateway
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import psutil; import sys; sys.exit(0 if any('LoraGateway' in p.name() for p in psutil.process_iter()) else 1)" || exit 1
+    CMD python -c "import psutil; import sys; sys.exit(0 if any('lora_gateway' in p.name() for p in psutil.process_iter()) else 1)" || exit 1
 
-CMD ["python", "LoraGateway.py"]
+CMD ["python", "src/lora_gateway.py"]
