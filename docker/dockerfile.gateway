@@ -12,6 +12,7 @@ RUN useradd --create-home --shell /bin/bash gateway
 WORKDIR /app
 
 # Copy requirements and install Python dependencies
+COPY requirements/ ./requirements/
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
