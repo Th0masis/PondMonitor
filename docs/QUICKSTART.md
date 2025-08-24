@@ -51,7 +51,7 @@ git clone https://github.com/Th0masis/PondMonitor.git
 cd PondMonitor
 
 # Copy testing configuration
-cp .env.testing .env
+cp config/.env.testing .env
 
 # Build and start services (will auto-detect docker compose vs docker-compose)
 docker compose build || docker-compose build

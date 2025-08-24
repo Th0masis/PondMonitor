@@ -87,7 +87,7 @@ docker compose version || docker-compose version
 
 ```bash
 # Create production environment file
-cp .env.testing .env.prod
+cp config/.env.testing .env.prod
 
 # Edit the production configuration
 nano .env.prod  # or use your preferred editor

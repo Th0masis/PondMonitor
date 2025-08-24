@@ -661,7 +661,7 @@ if [ "$confirm" = "YES" ]; then
     docker system prune -af
     
     echo "🔧 Recreating configuration..."
-    cp .env.testing .env
+    cp config/.env.testing .env
     
     echo "🚀 Starting services..."
     docker compose build || docker-compose build
@@ -680,7 +680,7 @@ fi
 # Switch to testing mode
 switch_to_testing() {
     echo "🧪 Switching to testing mode..."
-    cp .env.testing .env
+    cp config/.env.testing .env
     docker compose down || docker-compose down
     docker compose up -d || docker-compose up -d
     echo "✅ Now in testing mode"

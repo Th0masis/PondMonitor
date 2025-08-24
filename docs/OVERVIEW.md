@@ -72,13 +72,13 @@ PondMonitor is a comprehensive IoT monitoring platform designed for environmenta
 
 ### **Component Details**
 
-#### **🌐 Web Interface (`UI/`)**
+#### **🌐 Web Interface (`src/web/`)**
 - **Flask Application:** Python web framework with Jinja2 templates
 - **Frontend:** Modern responsive design with Tailwind CSS
 - **Charts:** Interactive visualizations using Highcharts
 - **Pages:** Dashboard, Weather, Diagnostics with real-time updates
 
-#### **📡 Data Gateway (`LoraGateway.py`)**
+#### **📡 Data Gateway (`src/lora_gateway.py`)**
 - **Serial Communication:** Handles USB/UART connections to LoRa modules
 - **Data Processing:** Validates, processes, and routes sensor data
 - **Dual Storage:** Real-time Redis updates + historical PostgreSQL storage
@@ -165,7 +165,7 @@ station_metrics:
 ## 📊 Data Flow
 
 1. **Sensors** → **LoRa Gateway** → **Serial/USB**
-2. **LoraGateway.py** → **Data Processing** → **Validation**
+2. **src/lora_gateway.py** → **Data Processing** → **Validation**
 3. **Redis Cache** (real-time) + **TimescaleDB** (historical)
 4. **Flask API** → **JSON responses** → **Web Interface**
 5. **Highcharts** → **Interactive visualizations**

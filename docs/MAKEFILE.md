@@ -151,7 +151,7 @@ docker compose logs lora_gateway
 
 ### **make test-mode**
 Starts PondMonitor in testing mode with simulated data:
-- Copies `.env.testing` to `.env`
+- Copies `config/.env.testing` to `.env`
 - Starts Docker Compose services
 - No USB hardware required
 - Generates realistic simulated sensor data

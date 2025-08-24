@@ -127,7 +127,7 @@ PondMonitor includes comprehensive GitHub Actions workflows:
 
 ```bash
 # Use testing configuration
-cp .env.testing .env
+cp config/.env.testing .env
 
 # Verify testing mode
 grep -E "TESTING_MODE|SIMULATE_DATA" .env
@@ -173,15 +173,15 @@ make show-redis
 # Run linting
 make lint
 # or
-flake8 *.py UI/ services/ tests/
+flake8 src/ tests/
 
 # Format code
 make format
 # or
-black *.py UI/ services/ tests/
+black src/ tests/
 
 # Type checking
-mypy *.py services/
+mypy src/
 ```
 
 ### **4. Testing Cycle**
@@ -295,15 +295,16 @@ FROM station_metrics;
 
 ```
 PondMonitor/
-├── 📄 config.py                    # Configuration system
-├── 📄 database.py                  # Database service layer
-├── 📄 utils.py                     # Utilities and validation
-├── 📄 LoraGateway.py               # LoRa communication
-├── 🗂️ UI/                          # Flask web application
-├── 🗂️ services/                    # Service modules
-│   ├── 📄 export_service.py        # Data export functionality
-│   ├── 📄 weather_service.py       # Weather API integration
-│   └── 📄 alert_service.py         # Alert system (future)
+├── 🗂️ src/                         # Core application code
+│   ├── 📄 config.py                # Configuration system
+│   ├── 📄 database.py              # Database service layer
+│   ├── 📄 utils.py                 # Utilities and validation
+│   ├── 📄 lora_gateway.py          # LoRa communication
+│   ├── 📄 logging_config.py        # Logging configuration
+│   ├── 🗂️ services/                # Service modules
+│   └── 🗂️ web/                     # Flask web application
+├── 🗂️ config/                      # Environment configurations
+├── 🗂️ requirements/                # Split requirements
 ├── 🗂️ tests/                       # Test suite
 │   ├── 📄 test_config.py           # Configuration tests
 │   ├── 📄 test_service.py          # Service tests
@@ -433,7 +434,7 @@ du -sh logs/
 grep -r "password\|secret\|key" logs/ || echo "No secrets found in logs"
 
 # Verify test configuration doesn't expose secrets
-grep -E "secret|password|key" .env.testing
+grep -E "secret|password|key" config/.env.testing
 
 # Check container security
 docker scout quickview  # if available
@@ -494,7 +495,7 @@ make format
 - Use testing mode for development (no hardware required)
 - Monitor logs during development: `make test-logs`
 - Use `make debug` for troubleshooting
-- Keep `.env.testing` as template, customize `.env` for local needs
+- Keep `config/.env.testing` as template, customize `.env` for local needs
 
 ### **Performance Tips**
 - Use `make show-data` to verify data generation
