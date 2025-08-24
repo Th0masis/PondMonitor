@@ -67,6 +67,7 @@ jobs:
         cp -r src/ release-package/
         cp -r docker/ release-package/
         cp -r config/ release-package/
+        cp -r requirements/ release-package/
         cp requirements.txt release-package/
         
         # Documentation for end users
@@ -138,7 +139,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r requirements/test.txt
 
     - name: Set up test environment
       run: |
