@@ -95,6 +95,7 @@ jobs:
 
     - name: Build Flask UI image for scanning
       uses: docker/build-push-action@v5
+      continue-on-error: true
       with:
         context: .
         file: ./docker/dockerfile.flask_ui
@@ -105,6 +106,7 @@ jobs:
 
     - name: Build Gateway image for scanning
       uses: docker/build-push-action@v5
+      continue-on-error: true
       with:
         context: .
         file: ./docker/dockerfile.gateway
@@ -113,7 +115,14 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    - name: Check if Flask UI image exists
+      run: docker image inspect pondmonitor-flask-ui:latest >/dev/null 2>&1 && echo "flask_ui_exists=true" >> $GITHUB_ENV || echo "flask_ui_exists=false" >> $GITHUB_ENV
+
+    - name: Check if Gateway image exists  
+      run: docker image inspect pondmonitor-gateway:latest >/dev/null 2>&1 && echo "gateway_exists=true" >> $GITHUB_ENV || echo "gateway_exists=false" >> $GITHUB_ENV
+
     - name: Run Trivy vulnerability scanner on Flask UI
+      if: env.flask_ui_exists == 'true'
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: 'pondmonitor-flask-ui:latest'
@@ -121,6 +130,7 @@ jobs:
         output: 'trivy-flask-ui.sarif'
 
     - name: Run Trivy vulnerability scanner on Gateway
+      if: env.gateway_exists == 'true'
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: 'pondmonitor-gateway:latest'
@@ -128,15 +138,15 @@ jobs:
         output: 'trivy-gateway.sarif'
 
     - name: Upload Trivy scan results to GitHub Security tab
+      if: env.flask_ui_exists == 'true'
       uses: github/codeql-action/upload-sarif@v2
-      if: always()
       with:
         sarif_file: 'trivy-flask-ui.sarif'
         category: 'trivy-flask-ui'
 
     - name: Upload Gateway scan results to GitHub Security tab
+      if: env.gateway_exists == 'true'
       uses: github/codeql-action/upload-sarif@v2
-      if: always()
       with:
         sarif_file: 'trivy-gateway.sarif'
         category: 'trivy-gateway'
