@@ -1,0 +1,46 @@
+/* PondMonitor - Dashboard Specific Styles */
+
+/* Dashboard print styles */
+@media print {
+  .no-print { 
+    display: none !important; 
+  }
+  
+  .chart-container { 
+    break-inside: avoid; 
+    page-break-inside: avoid;
+  }
+}
+  
+/* Dashboard mobile responsiveness */
+@media (max-width: 768px) {
+  .chart-container {
+    min-width: unset;
+  }
+  
+  /* Stack charts vertically on mobile */
+  .card-body > div {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .card-body > div > div {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .card-body > div > div:last-child {
+    border-bottom: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-header > div {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .card-header > div > div {
+    justify-content: center;
+  }
+}

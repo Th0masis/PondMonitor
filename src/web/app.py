@@ -33,6 +33,7 @@ from src.config import init_config, get_config
 from src.database import init_database, get_database
 from src.utils import handle_errors, log_requests, validate_json, Validator
 from src.services.export_service import create_export_service, ExportConfig
+from src.services.advanced_export_service import AdvancedExportService, AdvancedExportConfig
 from src.services.weather_service import create_weather_service
 from src.logging_config import setup_logging, get_logger, PerformanceLogger
 
@@ -42,6 +43,7 @@ logger = get_logger(__name__)
 # Global service instances
 db_service = None
 export_service = None
+advanced_export_service = None
 weather_service = None
 
 
@@ -55,7 +57,7 @@ def create_app(config_file: str = ".env") -> Flask:
     Returns:
         Configured Flask application
     """
-    global db_service, export_service, weather_service
+    global db_service, export_service, advanced_export_service, weather_service
     
     # Initialize configuration
     logger.info("Initializing PondMonitor application")
@@ -87,6 +89,10 @@ def create_app(config_file: str = ".env") -> Flask:
         # Export service
         export_service = create_export_service(db_service)
         logger.info("✅ Export service initialized")
+        
+        # Advanced export service
+        advanced_export_service = AdvancedExportService(db_service)
+        logger.info("✅ Advanced export service initialized")
         
         # Weather service
         weather_service = create_weather_service(config.weather, config.redis)
@@ -137,6 +143,10 @@ def register_routes(app: Flask) -> None:
     @app.route("/diagnostics")
     def diagnostics():
         return render_template("diagnostics.html")
+
+    @app.route("/export")
+    def export():
+        return render_template("export.html")
     
     # =================================================================
     # API ROUTES (enhanced with new services)
@@ -519,6 +529,143 @@ def register_routes(app: Flask) -> None:
                 
         except Exception as e:
             logger.error(f"Export error: {e}")
+            raise
+
+    # =================================================================
+    # ADVANCED EXPORT ROUTES (Week 2 Enhancement)
+    # =================================================================
+    
+    @app.route("/api/advanced-export/config")
+    @log_requests
+    @handle_errors
+    def get_advanced_export_config():
+        """Get available advanced export configuration options"""
+        
+        config_options = {
+            "data_types": [
+                {"id": "pond_data", "name": "Pond Measurements", "description": "Temperature, pH, oxygen levels"},
+                {"id": "station_data", "name": "Station Diagnostics", "description": "Battery, signal, solar power"},
+                {"id": "weather_data", "name": "Weather Data", "description": "Temperature, humidity, pressure"}
+            ],
+            "aggregation_options": [
+                {"id": "raw", "name": "Raw Data", "description": "All individual measurements"},
+                {"id": "hourly", "name": "Hourly Average", "description": "Aggregated by hour"},
+                {"id": "daily", "name": "Daily Summary", "description": "Min/max/average per day"}
+            ],
+            "export_formats": [
+                {"id": "excel", "name": "Excel (.xlsx)", "description": "Professional Excel format with charts"},
+                {"id": "csv", "name": "CSV", "description": "Comma-separated values"},
+                {"id": "json", "name": "JSON", "description": "JavaScript Object Notation"}
+            ],
+            "filter_ranges": advanced_export_service.get_filter_ranges()
+        }
+        
+        return jsonify(config_options)
+    
+    @app.route("/api/advanced-export/estimate", methods=["POST"])
+    @log_requests
+    @handle_errors
+    @validate_json
+    def advanced_export_estimate():
+        """Estimate advanced export size and processing time"""
+        
+        try:
+            data = request.get_json()
+            
+            config = AdvancedExportConfig(
+                start_time=datetime.fromisoformat(data['start_time'].replace('Z', '+00:00')),
+                end_time=datetime.fromisoformat(data['end_time'].replace('Z', '+00:00')),
+                data_types=data.get('data_types', ['pond_data']),
+                format=data.get('format', 'excel'),
+                aggregation=data.get('aggregation', 'raw'),
+                include_charts=data.get('include_charts', False),
+                excel_formatting=data.get('excel_formatting', True),
+                temperature_range=data.get('temperature_range'),
+                battery_range=data.get('battery_range'),
+                signal_range=data.get('signal_range')
+            )
+            
+            estimate = advanced_export_service.estimate_export(config)
+            return jsonify(estimate)
+            
+        except Exception as e:
+            logger.error(f"Advanced export estimation error: {e}")
+            raise
+    
+    @app.route("/api/advanced-export", methods=["POST"])
+    @log_requests
+    @handle_errors
+    @validate_json
+    def advanced_export():
+        """Perform advanced export with enhanced features"""
+        
+        try:
+            data = request.get_json()
+            
+            config = AdvancedExportConfig(
+                start_time=datetime.fromisoformat(data['start_time'].replace('Z', '+00:00')),
+                end_time=datetime.fromisoformat(data['end_time'].replace('Z', '+00:00')),
+                data_types=data.get('data_types', ['pond_data']),
+                format=data.get('format', 'excel'),
+                aggregation=data.get('aggregation', 'raw'),
+                include_charts=data.get('include_charts', False),
+                excel_formatting=data.get('excel_formatting', True),
+                temperature_range=data.get('temperature_range'),
+                battery_range=data.get('battery_range'),
+                signal_range=data.get('signal_range')
+            )
+            
+            with PerformanceLogger(logger, "advanced_export", 
+                                 format=config.format, 
+                                 data_types=config.data_types,
+                                 aggregation=config.aggregation):
+                
+                exported_data = advanced_export_service.export_advanced(config)
+                
+                # Generate filename with timestamp and configuration info
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                data_type_suffix = "_".join(config.data_types)
+                filename_base = f"pond_advanced_{data_type_suffix}_{config.aggregation}_{timestamp}"
+                
+                # Set appropriate content type and headers
+                if config.format == 'csv':
+                    response = app.response_class(
+                        exported_data,
+                        mimetype='text/csv',
+                        headers={"Content-Disposition": f"attachment; filename={filename_base}.csv"}
+                    )
+                elif config.format == 'json':
+                    response = app.response_class(
+                        exported_data,
+                        mimetype='application/json',
+                        headers={"Content-Disposition": f"attachment; filename={filename_base}.json"}
+                    )
+                elif config.format in ['excel', 'xlsx']:
+                    response = app.response_class(
+                        exported_data,
+                        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        headers={"Content-Disposition": f"attachment; filename={filename_base}.xlsx"}
+                    )
+                else:
+                    return jsonify({"error": f"Unsupported format: {config.format}"}), 400
+                
+                return response
+                
+        except Exception as e:
+            logger.error(f"Advanced export error: {e}")
+            raise
+    
+    @app.route("/api/advanced-export/progress/<job_id>")
+    @log_requests
+    @handle_errors
+    def advanced_export_progress(job_id: str):
+        """Get progress of long-running advanced export job"""
+        
+        try:
+            progress = advanced_export_service.get_export_progress(job_id)
+            return jsonify(progress)
+        except Exception as e:
+            logger.error(f"Export progress error: {e}")
             raise
 
 

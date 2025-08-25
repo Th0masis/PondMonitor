@@ -1,0 +1,474 @@
+/* PondMonitor - Enhanced Mobile Responsiveness */
+
+/* Touch-friendly interactions */
+@media (max-width: 768px) {
+  /* Increased touch targets */
+  .btn {
+    min-height: 44px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Range buttons grid for better touch */
+  .time-range-controls {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    width: 100%;
+  }
+  
+  .time-range-controls .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Mobile-optimized form inputs */
+  .form-input {
+    min-height: 44px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  /* Status cards stack properly */
+  #statusCards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  /* Weather cards responsive scrolling */
+  #currentWeather,
+  #weatherStats {
+    display: flex;
+    overflow-x: auto;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+    scroll-snap-type: x mandatory;
+  }
+  
+  #currentWeather > *,
+  #weatherStats > * {
+    flex: 0 0 280px;
+    scroll-snap-align: start;
+  }
+  
+  /* Charts mobile optimization */
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .chart-container {
+    padding: 1rem;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 0.5rem;
+  }
+  
+  /* Mobile navigation improvements */
+  .card-header {
+    padding: 1rem;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+  
+  /* Forecast cards horizontal scroll */
+  #forecastCards {
+    display: flex;
+    overflow-x: auto;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  #forecastCards > * {
+    flex: 0 0 160px;
+    scroll-snap-align: start;
+  }
+}
+
+/* Mobile portrait specific */
+@media (max-width: 640px) and (orientation: portrait) {
+  .main-content main {
+    padding: 1rem;
+  }
+  
+  /* Statistics cards 2x2 grid */
+  .stat-card {
+    padding: 1.5rem;
+  }
+  
+  .stat-value {
+    font-size: 1.75rem;
+  }
+  
+  /* Mobile-specific chart heights */
+  .chart-container > div[id*="Chart"],
+  .chart-container > div[id*="chart"] {
+    height: 280px !important;
+  }
+  
+  #meteogram {
+    height: 300px !important;
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+  .charts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .time-range-controls {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* Touch interactions */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects on touch devices */
+  .card:hover,
+  .btn:hover,
+  .nav-link:hover {
+    transform: none;
+    box-shadow: inherit;
+  }
+  
+  /* Add active states for touch feedback */
+  .btn:active {
+    transform: scale(0.98);
+  }
+  
+  .nav-link:active {
+    transform: translateX(0);
+    background-color: var(--bg-tertiary);
+  }
+  
+  /* Touch-friendly chart tooltips */
+  .chart-container {
+    touch-action: pan-x pan-y;
+  }
+}
+
+/* High-DPI display adjustments */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .weather-icon,
+  .stat-icon {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Fix viewport height on iOS */
+  .main-content {
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Prevent rubber band scrolling */
+  body {
+    overscroll-behavior: none;
+  }
+}
+
+/* Enhanced Mobile Export Page */
+@media (max-width: 768px) {
+  /* Export form sections */
+  .form-section {
+    padding: 1rem 0;
+  }
+  
+  .form-section-title {
+    font-size: 1rem;
+  }
+  
+  /* Selection cards mobile layout */
+  .selection-card {
+    padding: 0.75rem;
+    min-height: 60px;
+  }
+  
+  #dataTypeSelection,
+  #formatSelection,
+  #aggregationSelection {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  /* Filter controls mobile */
+  .filter-group {
+    padding: 0.75rem;
+  }
+  
+  /* Export preview mobile */
+  #exportPreview {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .preview-stat {
+    padding: 0.75rem;
+  }
+  
+  .preview-stat-value {
+    font-size: 1.25rem;
+  }
+  
+  /* Export estimate mobile */
+  #exportEstimate {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .estimate-item {
+    padding: 0.5rem;
+  }
+  
+  .estimate-value {
+    font-size: 1.125rem;
+  }
+  
+  /* Progress bar mobile */
+  #exportProgress {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  
+  #progressText {
+    text-align: center;
+    min-width: auto;
+  }
+}
+
+/* Mobile portrait optimizations */
+@media (max-width: 640px) and (orientation: portrait) {
+  /* Single column layouts for small screens */
+  #dataTypeSelection,
+  #formatSelection,
+  #aggregationSelection,
+  #exportPreview,
+  #exportEstimate {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Larger touch targets */
+  .selection-card {
+    min-height: 64px;
+    padding: 1rem;
+  }
+  
+  .btn {
+    min-height: 48px;
+    padding: 0.875rem 1rem;
+  }
+  
+  /* Simplified quick range buttons */
+  .quick-range-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  
+  /* Form inputs larger on mobile */
+  .form-input {
+    min-height: 48px;
+    font-size: 16px; /* Prevent zoom on iOS */
+    padding: 0.875rem;
+  }
+  
+  /* Date inputs mobile styling */
+  input[type="datetime-local"] {
+    background-color: var(--bg-primary);
+    border: 2px solid var(--border-color);
+  }
+}
+
+/* Improved touch interactions */
+@media (hover: none) and (pointer: coarse) {
+  /* Enhanced selection card interactions */
+  .selection-card:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+  
+  .selection-card.selected:active {
+    transform: scale(0.96);
+  }
+  
+  /* Filter checkbox larger touch area */
+  .form-label input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-right: 0.75rem;
+  }
+  
+  /* Range input improvements */
+  input[type="range"] {
+    height: 2rem;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  
+  input[type="range"]::-webkit-slider-track {
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    background: var(--color-blue);
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+  }
+  
+  /* Better button feedback */
+  .btn:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+  
+  /* Form section expansion */
+  .form-section-title {
+    cursor: pointer;
+    user-select: none;
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+  .main-content main {
+    padding: 0.75rem;
+  }
+  
+  /* Two column layout for landscape */
+  #dataTypeSelection,
+  #formatSelection {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  #exportPreview {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  #exportEstimate {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  /* Compact form sections */
+  .form-section {
+    padding: 0.75rem 0;
+  }
+  
+  .card-body {
+    padding: 0.75rem;
+  }
+}
+
+/* Tablet responsive improvements */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Tablet-specific optimizations */
+  #dataTypeSelection,
+  #formatSelection {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  #aggregationSelection {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  #exportPreview {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  /* Touch-friendly but not too large */
+  .btn {
+    min-height: 40px;
+    padding: 0.625rem 1rem;
+  }
+  
+  .selection-card {
+    padding: 1rem;
+    min-height: 70px;
+  }
+}
+
+/* Dark mode mobile adjustments */
+@media (max-width: 768px) {
+  [data-theme="dark"] .selection-card {
+    border-color: #4b5563;
+  }
+  
+  [data-theme="dark"] .selection-card.selected {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: #3b82f6;
+  }
+  
+  [data-theme="dark"] .filter-group {
+    background-color: #1f2937;
+    border-color: #4b5563;
+  }
+  
+  [data-theme="dark"] .form-input {
+    background-color: #1f2937;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+  
+  [data-theme="dark"] input[type="datetime-local"] {
+    background-color: #1f2937;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+}
+
+/* Accessibility improvements for mobile */
+@media (max-width: 768px) {
+  /* Focus indicators more visible on mobile */
+  .btn:focus,
+  .form-input:focus,
+  .selection-card:focus {
+    outline: 3px solid var(--color-blue);
+    outline-offset: 2px;
+  }
+  
+  /* Screen reader support */
+  .selection-card::after {
+    content: attr(aria-label);
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  
+  .selection-card.selected::after {
+    content: "Vybráno: " attr(aria-label);
+  }
+  
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    .selection-card,
+    .btn,
+    #progressFill {
+      transition: none;
+    }
+    
+    .selection-card:active,
+    .btn:active {
+      transform: none;
+    }
+  }
+}

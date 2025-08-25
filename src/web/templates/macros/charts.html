@@ -1,0 +1,38 @@
+{# Chart rendering macros #}
+
+{% macro render_chart_container(chart_id, title, meta_id="") %}
+<div class="chart-container">
+  <div class="chart-header">
+    <h3 class="chart-title">{{ title }}</h3>
+    {% if meta_id %}
+    <div class="chart-meta">
+      <span id="{{ meta_id }}">0 bodů</span>
+    </div>
+    {% endif %}
+  </div>
+  <div id="{{ chart_id }}" style="height: 320px;"></div>
+</div>
+{% endmacro %}
+
+{% macro render_time_range_controls(button_class="range-btn") %}
+<div class="time-range-controls">
+  <button data-hours="1" class="btn btn-secondary {{ button_class }}">1h</button>
+  <button data-hours="6" class="btn btn-secondary {{ button_class }}">6h</button>
+  <button data-hours="12" class="btn btn-secondary {{ button_class }}">12h</button>
+  <button data-hours="24" class="btn btn-primary {{ button_class }}">24h</button>
+  <button data-hours="72" class="btn btn-secondary {{ button_class }}">3d</button>
+  <button data-hours="168" class="btn btn-secondary {{ button_class }}">7d</button>
+</div>
+{% endmacro %}
+
+{% macro render_manual_date_selector() %}
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;">
+  <label for="startDate" class="form-label" style="margin: 0;">Časové období:</label>
+  <input type="datetime-local" id="startDate" class="form-input" style="width: auto;" />
+  <span class="text-muted">do</span>
+  <input type="datetime-local" id="endDate" class="form-input" style="width: auto;" />
+  <button onclick="loadManual()" class="btn btn-primary">
+    Načíst
+  </button>
+</div>
+{% endmacro %}
