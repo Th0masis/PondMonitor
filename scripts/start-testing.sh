@@ -81,10 +81,10 @@ mkdir -p db/backups
 mkdir -p monitoring
 
 echo "🏗️ Building Docker images..."
-$DOCKER_COMPOSE_CMD build
+$DOCKER_COMPOSE_CMD -f docker/docker-compose.yml build
 
 echo "🚀 Starting services..."
-$DOCKER_COMPOSE_CMD up -d
+$DOCKER_COMPOSE_CMD -f docker/docker-compose.yml up -d
 
 echo "⏳ Waiting for services to start..."
 sleep 10
@@ -112,9 +112,9 @@ echo "  • Weather data from met.no API"
 echo "  • Real-time charts and diagnostics"
 echo ""
 echo "🔧 Useful commands:"
-echo "  • View logs: docker-compose logs -f"
-echo "  • Check status: docker-compose ps"
-echo "  • Stop services: docker-compose down"
+echo "  • View logs: docker compose -f docker/docker-compose.yml logs -f"
+echo "  • Check status: docker compose -f docker/docker-compose.yml ps"
+echo "  • Stop services: docker compose -f docker/docker-compose.yml down"
 echo "  • Show recent data: make show-data"
 echo ""
 echo "🧪 Testing Notes:"
@@ -125,7 +125,7 @@ echo ""
 
 # Show current status
 echo "📋 Current Service Status:"
-$DOCKER_COMPOSE_CMD ps
+$DOCKER_COMPOSE_CMD -f docker/docker-compose.yml ps
 
 echo ""
 echo "🌐 Open http://localhost:5000 in your browser to see the dashboard!"
