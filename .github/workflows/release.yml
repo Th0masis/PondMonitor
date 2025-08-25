@@ -184,6 +184,7 @@ jobs:
         file: ./docker/dockerfile.flask_ui
         platforms: linux/amd64
         push: false
+        load: true
         tags: pondmonitor-flask-ui:${{ needs.validate-release.outputs.version }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -195,6 +196,7 @@ jobs:
         file: ./docker/dockerfile.gateway
         platforms: linux/amd64
         push: false
+        load: true
         tags: pondmonitor-gateway:${{ needs.validate-release.outputs.version }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
