@@ -251,7 +251,7 @@ jobs:
         **For End Users (Production Deployment):**
         1. Download \`pondmonitor-$VERSION.tar.gz\` or \`pondmonitor-$VERSION.zip\`
         2. Extract the package
-        3. Run: \`docker-compose up -d\`
+        3. Run: \`docker compose up -d\`
         
         **For Developers (Full Repository):**
         \`\`\`bash
@@ -311,7 +311,7 @@ jobs:
         echo "### 🚀 Quick Start:" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
         echo "# Extract downloaded package and run:" >> $GITHUB_STEP_SUMMARY
-        echo "docker-compose up -d" >> $GITHUB_STEP_SUMMARY
+        echo "docker compose up -d" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 🏗️ New Project Structure:" >> $GITHUB_STEP_SUMMARY
