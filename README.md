@@ -32,9 +32,9 @@ Download the latest stable release - contains only essential files:
 # Download latest release
 curl -L https://github.com/Th0masis/PondMonitor/releases/latest/download/pondmonitor-latest.tar.gz | tar -xz
 cd pondmonitor-*/
-docker-compose up -d
+docker compose -f docker/docker-compose.yml --env-file .env up -d
 
-# Access at http://localhost:5000
+# Access at http://localhost:5005
 ```
 
 ### **🧑‍💻 For Developers (Full Repository)**
@@ -44,10 +44,15 @@ Clone the complete repository for development and contributions:
 # Clone full repository (includes tests, CI/CD, dev tools)
 git clone https://github.com/Th0masis/PondMonitor.git
 cd PondMonitor
+
+# Start with Docker (recommended)
+docker compose -f docker/docker-compose.yml --env-file .env up
+
+# Or use testing script
 chmod +x scripts/start-testing.sh
 ./scripts/start-testing.sh
 
-# Access at http://localhost:5000
+# Access at http://localhost:5005
 ```
 
 ## ✨ Key Features
@@ -154,6 +159,22 @@ See [Development Guide](docs/DEVELOPMENT.md) for complete testing documentation.
 
 ## 🔧 Quick Commands
 
+### Docker Commands
+```bash
+# Start services (recommended method)
+docker compose -f docker/docker-compose.yml --env-file .env up
+
+# Start in background
+docker compose -f docker/docker-compose.yml --env-file .env up -d
+
+# Stop services
+docker compose -f docker/docker-compose.yml down
+
+# View logs
+docker compose -f docker/docker-compose.yml logs -f
+```
+
+### Make Commands  
 ```bash
 # Development mode (testing with simulated data)
 make quick-start
@@ -170,6 +191,11 @@ make health
 # Clean up
 make clean
 ```
+
+### Important Notes
+- **Port Configuration**: The application runs on http://localhost:5005 (configured in `.env` file)
+- **Environment File**: Always include `--env-file .env` when using `-f docker/docker-compose.yml`
+- **Why `--env-file`?**: When using `-f` with a path, Docker Compose doesn't automatically find the `.env` file
 
 ## 🏃‍♂️ Getting Started
 

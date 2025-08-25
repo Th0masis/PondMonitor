@@ -9,10 +9,11 @@ services:
       - "${FLASK_PORT:-5000}:5000"
     volumes:
       - ../logs:/app/logs
+    env_file:
+      - ../.env
     environment:
       - REDIS_HOST=${REDIS_HOST:-redis}
       - PG_HOST=${PG_HOST:-timescaledb}
-      - FLASK_ENV=${FLASK_ENV:-production}
       - WEATHER_LAT=${WEATHER_LAT:-49.6265900}
       - WEATHER_LON=${WEATHER_LON:-18.3016172}
       - WEATHER_ALT=${WEATHER_ALT:-350}
@@ -43,6 +44,8 @@ services:
     devices: []
     volumes:
       - ../logs:/app/logs
+    env_file:
+      - ../.env
     environment:
       - REDIS_HOST=${REDIS_HOST:-redis}
       - PG_HOST=${PG_HOST:-timescaledb}
@@ -66,6 +69,8 @@ services:
 
   timescaledb:
     image: timescale/timescaledb:latest-pg15
+    env_file:
+      - ../.env
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-pond_user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secretpassword}

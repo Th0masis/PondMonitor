@@ -220,7 +220,10 @@ class PerformanceFilter(logging.Filter):
             process = psutil.Process()
             record.memory_usage_mb = process.memory_info().rss / 1024 / 1024
             record.cpu_percent = process.cpu_percent()
-        except (ImportError, psutil.NoSuchProcess):
+        except ImportError:
+            pass
+        except Exception:
+            # Catch all other psutil-related exceptions
             pass
         
         return True

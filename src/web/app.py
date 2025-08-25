@@ -533,8 +533,15 @@ if __name__ == "__main__":
     logger.info(f"Configuration summary: {config.get_summary()}")
     
     # Run application
+    # In Docker containers, always use port 5000 internally
+    # External port mapping is handled by docker-compose.yml
+    import socket
+    is_docker = os.path.exists('/.dockerenv')
+    port = 5000 if is_docker else config.flask.port
+    
+    logger.info(f"Running Flask app on {'Docker' if is_docker else 'host'} port {port}")
     app.run(
         host=config.flask.host,
-        port=config.flask.port,
+        port=port,
         debug=config.flask.debug
     )

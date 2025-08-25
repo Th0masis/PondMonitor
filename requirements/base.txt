@@ -17,3 +17,10 @@ python-dotenv>=1.0.0
 
 # Date/time handling
 python-dateutil>=2.8.0
+
+# System monitoring (for logging)
+psutil>=5.9.0
+
+# Data analysis and export (optional but recommended)
+pandas>=2.0.0
+openpyxl>=3.1.0
