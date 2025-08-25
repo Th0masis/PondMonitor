@@ -209,16 +209,16 @@ jobs:
     - name: Stop existing containers
       run: |
         cd docker
-        sudo docker compose down || true
+        docker compose down || true
     
     - name: Pull latest images and deploy
       run: |
         cd docker
-        sudo docker compose pull || true
-        sudo docker compose up -d --build
+        docker compose pull || true
+        docker compose up -d --build
     
     - name: Wait for services to be healthy
       run: |
         cd docker
-        sudo docker compose ps
+        docker compose ps
         echo "✅ Deployment completed!"
