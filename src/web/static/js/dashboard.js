@@ -93,6 +93,10 @@ function updateLevelChart(data, hours) {
     
     chartLevel = Highcharts.chart('chartLevel', {
       ...chartOptions,
+      chart: {
+        ...chartOptions.chart,
+        id: 'chartLevel'
+      },
       yAxis: { 
         ...chartOptions.yAxis,
         title: { text: 'cm', style: { color: 'var(--chart-text)' } }
@@ -121,6 +125,10 @@ function updateOutflowChart(data, hours) {
     
     chartOutflow = Highcharts.chart('chartOutflow', {
       ...chartOptions,
+      chart: {
+        ...chartOptions.chart,
+        id: 'chartOutflow'
+      },
       yAxis: { 
         ...chartOptions.yAxis,
         title: { text: 'l/s', style: { color: 'var(--chart-text)' } }
@@ -218,29 +226,215 @@ function exportData(format) {
 }
 
 function printCharts() {
-  // Create print-specific HTML content
-  const printWindow = window.open('', '_blank', 'width=1024,height=768');
+  console.log('=== Print Charts Debug ===');
+  console.log('Highcharts version:', Highcharts.version);
+  console.log('Exporting module loaded:', !!Highcharts.Chart.prototype.getSVG);
+  console.log('chartLevel variable:', chartLevel);
+  console.log('chartOutflow variable:', chartOutflow);
+  console.log('currentData:', currentData);
   
-  if (!printWindow) {
-    PondUtils.showError('Popup blokován. Prosím povolte popup okna pro tisk.');
+  // Check if chart elements exist and have been initialized
+  const levelChartEl = document.getElementById('chartLevel');
+  const outflowChartEl = document.getElementById('chartOutflow');
+  
+  console.log('Level chart element:', levelChartEl);
+  console.log('Outflow chart element:', outflowChartEl);
+  
+  if (!levelChartEl && !outflowChartEl) {
+    PondUtils.showError('Žádné grafy k tisku. Stránka se ještě nenačetla.');
     return;
   }
   
-  // Get current chart SVGs
-  const levelChartSVG = chartLevel ? chartLevel.getSVG({
-    chart: { backgroundColor: '#ffffff' },
-    title: { text: 'Hladina rybníka' },
-    subtitle: { text: `Období: ${getDateRangeText()}` }
-  }) : '<p>Graf hladiny není k dispozici</p>';
+  // Try to get Highcharts instances directly if variables are not set
+  let levelChart = chartLevel;
+  let outflowChart = chartOutflow;
   
-  const outflowChartSVG = chartOutflow ? chartOutflow.getSVG({
-    chart: { backgroundColor: '#ffffff' },
-    title: { text: 'Průtok výpustě' },
-    subtitle: { text: `Období: ${getDateRangeText()}` }
-  }) : '<p>Graf průtoku není k dispozici</p>';
+  // Also try to get from Highcharts global registry by element ID
+  if (!levelChart && window.Highcharts) {
+    levelChart = Highcharts.get('chartLevel') || 
+                 Highcharts.charts.find(chart => chart && chart.container === levelChartEl);
+  }
   
-  // Get current statistics
-  const stats = getFormattedStats();
+  if (!outflowChart && window.Highcharts) {
+    outflowChart = Highcharts.get('chartOutflow') || 
+                   Highcharts.charts.find(chart => chart && chart.container === outflowChartEl);
+  }
+  
+  console.log('Final level chart:', levelChart);
+  console.log('Final outflow chart:', outflowChart);
+  
+  if (!levelChart && !outflowChart) {
+    PondUtils.showError('Grafy se ještě nenačetly. Počkejte chvilku a zkuste to znovu.');
+    return;
+  }
+  
+  // Try enhanced print first, fallback to simple print
+  try {
+    printChartsEnhanced(levelChart, outflowChart);
+  } catch (error) {
+    console.warn('Enhanced print failed, falling back to simple print:', error);
+    printChartsSimple();
+  }
+}
+
+function printChartsEnhanced(levelChart, outflowChart) {
+  
+  try {
+    // Get current chart SVGs with error handling
+    let levelChartSVG = '<div style="text-align: center; padding: 2rem; color: #6b7280;">Graf hladiny není k dispozici</div>';
+    let outflowChartSVG = '<div style="text-align: center; padding: 2rem; color: #6b7280;">Graf průtoku není k dispozici</div>';
+    
+    console.log('Print: Level chart available:', !!levelChart);
+    console.log('Print: Outflow chart available:', !!outflowChart);
+    
+    if (levelChart) {
+      try {
+        // Try different methods to get SVG depending on Highcharts version
+        console.log('Level chart getSVG method:', typeof levelChart.getSVG);
+        if (typeof levelChart.getSVG === 'function') {
+          levelChartSVG = levelChart.getSVG({
+            chart: { 
+              backgroundColor: '#ffffff',
+              width: 800,  // Optimized for A4 landscape print
+              height: 350,  // Good aspect ratio for print
+              spacing: [20, 20, 20, 20]  // Reduced padding for print
+            },
+            title: { 
+              text: 'Hladina rybníka', 
+              style: { fontSize: '18px', color: '#333' } 
+            },
+            subtitle: { 
+              text: `Období: ${getDateRangeText()}`, 
+              style: { fontSize: '14px', color: '#666' } 
+            },
+            legend: {
+              enabled: true,
+              itemStyle: { fontSize: '12px', color: '#333' }
+            }
+          });
+        } else {
+          // Fallback: Create a data table representation
+          const data = levelChart.series && levelChart.series[0] && levelChart.series[0].data;
+          let tableContent = '<p>Žádná data k zobrazení</p>';
+          
+          if (data && data.length > 0) {
+            const recentData = data.slice(-10); // Last 10 data points
+            tableContent = `
+              <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                <thead>
+                  <tr style="background: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px;">Čas</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Hladina (cm)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recentData.map(point => `
+                    <tr>
+                      <td style="border: 1px solid #ddd; padding: 8px;">${new Date(point.x || point[0]).toLocaleString('cs-CZ')}</td>
+                      <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${(point.y || point[1]).toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          }
+          
+          levelChartSVG = `
+            <div style="text-align: center; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; background: white;">
+              <h3 style="margin-bottom: 1rem; font-size: 18px;">Hladina rybníka</h3>
+              <p style="margin-bottom: 1rem; font-size: 14px; color: #666;">${getDateRangeText()}</p>
+              <p style="margin-bottom: 1rem; color: #888; font-size: 12px;">Posledních 10 měření:</p>
+              ${tableContent}
+            </div>
+          `;
+        }
+        console.log('Level chart content generated successfully');
+      } catch (e) {
+        console.warn('Error getting level chart content:', e);
+        levelChartSVG = `
+          <div style="text-align: center; padding: 2rem; color: #666; border: 1px solid #ddd; border-radius: 8px;">
+            <h3>Hladina rybníka</h3>
+            <p>Graf je k dispozici pouze v interaktivní verzi</p>
+          </div>
+        `;
+      }
+    }
+    
+    if (outflowChart) {
+      try {
+        // Try different methods to get SVG depending on Highcharts version
+        console.log('Outflow chart getSVG method:', typeof outflowChart.getSVG);
+        if (typeof outflowChart.getSVG === 'function') {
+          outflowChartSVG = outflowChart.getSVG({
+            chart: { 
+              backgroundColor: '#ffffff',
+              width: 800,  // Optimized for A4 landscape print
+              height: 350,  // Good aspect ratio for print
+              spacing: [20, 20, 20, 20]  // Reduced padding for print
+            },
+            title: { 
+              text: 'Průtok výpustě', 
+              style: { fontSize: '18px', color: '#333' } 
+            },
+            subtitle: { 
+              text: `Období: ${getDateRangeText()}`, 
+              style: { fontSize: '14px', color: '#666' } 
+            },
+            legend: {
+              enabled: true,
+              itemStyle: { fontSize: '12px', color: '#333' }
+            }
+          });
+        } else {
+          // Fallback: Create a data table representation
+          const data = outflowChart.series && outflowChart.series[0] && outflowChart.series[0].data;
+          let tableContent = '<p>Žádná data k zobrazení</p>';
+          
+          if (data && data.length > 0) {
+            const recentData = data.slice(-10); // Last 10 data points
+            tableContent = `
+              <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                <thead>
+                  <tr style="background: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 8px;">Čas</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Průtok (l/s)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recentData.map(point => `
+                    <tr>
+                      <td style="border: 1px solid #ddd; padding: 8px;">${new Date(point.x || point[0]).toLocaleString('cs-CZ')}</td>
+                      <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${(point.y || point[1]).toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          }
+          
+          outflowChartSVG = `
+            <div style="text-align: center; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; background: white;">
+              <h3 style="margin-bottom: 1rem; font-size: 18px;">Průtok výpustě</h3>
+              <p style="margin-bottom: 1rem; font-size: 14px; color: #666;">${getDateRangeText()}</p>
+              <p style="margin-bottom: 1rem; color: #888; font-size: 12px;">Posledních 10 měření:</p>
+              ${tableContent}
+            </div>
+          `;
+        }
+        console.log('Outflow chart content generated successfully');
+      } catch (e) {
+        console.warn('Error getting outflow chart content:', e);
+        outflowChartSVG = `
+          <div style="text-align: center; padding: 2rem; color: #666; border: 1px solid #ddd; border-radius: 8px;">
+            <h3>Průtok výpustě</h3>
+            <p>Graf je k dispozici pouze v interaktivní verzi</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Get current statistics
+    const stats = getFormattedStats();
   
   const printHTML = `
 <!DOCTYPE html>
@@ -251,7 +445,7 @@ function printCharts() {
     <style>
         @page {
             size: A4 landscape;
-            margin: 1cm;
+            margin: 1.5cm 1cm;  /* Top/bottom 1.5cm, left/right 1cm for better chart fit */
         }
         
         @media print {
@@ -288,8 +482,8 @@ function printCharts() {
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 30px;
+            gap: 15px;
+            margin-bottom: 25px;
         }
         
         .stat-card {
@@ -314,25 +508,33 @@ function printCharts() {
         }
         
         .charts-container {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 30px;
+            display: block;
+            width: 100%;
         }
         
         .chart-section {
             page-break-inside: avoid;
+            margin-bottom: 30px;
+            width: 100%;
         }
         
-        .chart-section h3 {
-            margin: 0 0 15px 0;
-            font-size: 18px;
-            color: #1f2937;
+        .chart-section:last-child {
+            margin-bottom: 0;
         }
         
         .chart-wrapper {
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             overflow: hidden;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .chart-wrapper svg {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
         }
         
         .print-footer {
@@ -381,17 +583,50 @@ function printCharts() {
     </div>
 </body>
 </html>`;
-  
-  printWindow.document.write(printHTML);
-  printWindow.document.close();
-  
-  // Wait for content to load, then print
-  printWindow.onload = () => {
-    setTimeout(() => {
-      printWindow.print();
-      setTimeout(() => printWindow.close(), 1000);
-    }, 500);
-  };
+    
+    // Create and open print window with better error handling
+    const printWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    
+    if (!printWindow) {
+      PondUtils.showError('Popup blokován. Prosím povolte popup okna pro tisk.');
+      return;
+    }
+    
+    // Write content to window
+    try {
+      printWindow.document.open();
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+      
+      // Wait for content to load, then print
+      if (printWindow.document.readyState === 'complete') {
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+          setTimeout(() => printWindow.close(), 1000);
+        }, 500);
+      } else {
+        printWindow.addEventListener('load', () => {
+          setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            setTimeout(() => printWindow.close(), 1000);
+          }, 500);
+        });
+      }
+      
+    } catch (error) {
+      console.error('Print window error:', error);
+      PondUtils.showError('Chyba při otevírání tisku. Zkuste to prosím znovu.');
+      if (printWindow && !printWindow.closed) {
+        printWindow.close();
+      }
+    }
+    
+  } catch (error) {
+    console.error('Print function error:', error);
+    PondUtils.showError('Chyba při přípravě tisku. Zkuste to prosím znovu.');
+  }
 }
 
 // Helper functions for print optimization
@@ -444,6 +679,64 @@ function getFormattedStats() {
   }
   
   return stats.slice(0, 8); // Limit to fit the grid
+}
+
+function printChartsSimple() {
+  // Simple fallback print method
+  console.log('Using simple print fallback');
+  
+  // Create a simple print stylesheet
+  const printStyles = `
+    @media print {
+      body * { visibility: hidden; }
+      .charts-section, .charts-section * { visibility: visible; }
+      .charts-section { 
+        position: absolute; 
+        left: 0; 
+        top: 0; 
+        width: 100%;
+      }
+      .sidebar, .navbar, .quick-actions, .card-header button { display: none !important; }
+      .chart-container { 
+        page-break-inside: avoid; 
+        margin-bottom: 2rem;
+      }
+    }
+  `;
+  
+  // Add print styles to head
+  const styleSheet = document.createElement('style');
+  styleSheet.media = 'print';
+  styleSheet.innerHTML = printStyles;
+  document.head.appendChild(styleSheet);
+  
+  // Add print header
+  const printHeader = document.createElement('div');
+  printHeader.id = 'print-header-temp';
+  printHeader.innerHTML = `
+    <div style="display: none;">
+      <h1 style="text-align: center; margin-bottom: 1rem;">🐟 PondMonitor Dashboard</h1>
+      <p style="text-align: center; margin-bottom: 2rem;">
+        <strong>Datum exportu:</strong> ${new Date().toLocaleString('cs-CZ')} | 
+        <strong>Období:</strong> ${getDateRangeText()}
+      </p>
+    </div>
+  `;
+  printHeader.querySelector('div').style.display = 'block';
+  document.body.insertBefore(printHeader, document.body.firstChild);
+  
+  // Print
+  try {
+    window.print();
+  } finally {
+    // Cleanup
+    setTimeout(() => {
+      document.head.removeChild(styleSheet);
+      if (document.getElementById('print-header-temp')) {
+        document.body.removeChild(printHeader);
+      }
+    }, 1000);
+  }
 }
 
 // Update charts when theme changes
