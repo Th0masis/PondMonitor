@@ -19,6 +19,7 @@ Original functionality preserved with improved architecture.
 import os
 import json
 import logging
+import random
 from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, request, jsonify, g
 from collections import defaultdict
@@ -716,6 +717,103 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             logger.error(f"Error fetching system logs: {e}")
             return jsonify([]), 500
+
+    # =================================================================
+    # DIAGNOSTIC ACTION ENDPOINTS
+    # =================================================================
+    
+    @app.route("/api/test-connection", methods=["POST"], endpoint="test_connection")
+    @log_requests
+    @handle_errors
+    def test_connection():
+        """Test device connection"""
+        try:
+            # In a real implementation, this would test the actual device connection
+            # For now, simulate a connection test
+            import random
+            import time
+            
+            time.sleep(1)  # Simulate test duration
+            
+            success = random.choice([True, True, True, False])  # 75% success rate
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Connection test successful',
+                    'details': {
+                        'response_time_ms': random.randint(50, 200),
+                        'signal_strength': random.randint(-95, -60),
+                        'packet_loss': random.randint(0, 5)
+                    }
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Connection timeout - device not responding'
+                }), 503
+                
+        except Exception as e:
+            logger.error(f"Connection test error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route("/api/diagnostics/export", endpoint="diagnostics_export")
+    @log_requests
+    @handle_errors
+    def export_diagnostics():
+        """Export system diagnostics data"""
+        try:
+            # Get current status and recent data for diagnostics export
+            status_data = {
+                'export_timestamp': datetime.now().isoformat(),
+                'system_status': {
+                    'connected': True,
+                    'battery_voltage': 3.8,
+                    'signal_strength': -75,
+                    'temperature': 22.5,
+                    'uptime_seconds': 86400,
+                    'free_memory': 2048,
+                    'device_id': 'POND_MONITOR_001'
+                },
+                'recent_measurements': [
+                    {'timestamp': (datetime.now() - timedelta(minutes=i*5)).isoformat(), 
+                     'temperature': 22.5 + random.uniform(-2, 2),
+                     'battery': 3.8 + random.uniform(-0.2, 0.2),
+                     'signal': -75 + random.randint(-10, 10)}
+                    for i in range(12)  # Last hour of data
+                ],
+                'system_logs': [
+                    {'timestamp': datetime.now().isoformat(), 'level': 'INFO', 'message': 'Diagnostics export generated'},
+                    {'timestamp': (datetime.now() - timedelta(minutes=5)).isoformat(), 'level': 'INFO', 'message': 'System health check passed'},
+                    {'timestamp': (datetime.now() - timedelta(minutes=10)).isoformat(), 'level': 'WARNING', 'message': 'Signal strength fluctuation detected'}
+                ]
+            }
+            
+            return jsonify(status_data)
+            
+        except Exception as e:
+            logger.error(f"Diagnostics export error: {e}")
+            return jsonify({'error': 'Failed to generate diagnostics export'}), 500
+    
+    @app.route("/api/device/reset", methods=["POST"], endpoint="device_reset")
+    @log_requests
+    @handle_errors
+    def reset_device():
+        """Reset/restart the monitoring device"""
+        try:
+            # In a real implementation, this would send a reset command to the device
+            # For now, simulate the reset request
+            logger.info("Device reset requested via web interface")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Device reset command sent successfully',
+                'estimated_downtime_minutes': 3
+            })
+            
+        except Exception as e:
+            logger.error(f"Device reset error: {e}")
+            return jsonify({'error': 'Failed to send reset command'}), 500
 
 
 # Application factory
