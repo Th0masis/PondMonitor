@@ -218,7 +218,232 @@ function exportData(format) {
 }
 
 function printCharts() {
-  window.print();
+  // Create print-specific HTML content
+  const printWindow = window.open('', '_blank', 'width=1024,height=768');
+  
+  if (!printWindow) {
+    PondUtils.showError('Popup blokován. Prosím povolte popup okna pro tisk.');
+    return;
+  }
+  
+  // Get current chart SVGs
+  const levelChartSVG = chartLevel ? chartLevel.getSVG({
+    chart: { backgroundColor: '#ffffff' },
+    title: { text: 'Hladina rybníka' },
+    subtitle: { text: `Období: ${getDateRangeText()}` }
+  }) : '<p>Graf hladiny není k dispozici</p>';
+  
+  const outflowChartSVG = chartOutflow ? chartOutflow.getSVG({
+    chart: { backgroundColor: '#ffffff' },
+    title: { text: 'Průtok výpustě' },
+    subtitle: { text: `Období: ${getDateRangeText()}` }
+  }) : '<p>Graf průtoku není k dispozici</p>';
+  
+  // Get current statistics
+  const stats = getFormattedStats();
+  
+  const printHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>PondMonitor - Dashboard Export</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 1cm;
+        }
+        
+        @media print {
+            body { -webkit-print-color-adjust: exact; }
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            color: #1f2937;
+        }
+        
+        .print-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+        }
+        
+        .print-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            color: #1f2937;
+        }
+        
+        .print-header p {
+            margin: 5px 0;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+        
+        .chart-section {
+            page-break-inside: avoid;
+        }
+        
+        .chart-section h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #1f2937;
+        }
+        
+        .chart-wrapper {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .print-footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #9ca3af;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="print-header">
+        <h1>🐟 PondMonitor Dashboard</h1>
+        <p><strong>Datum exportu:</strong> ${new Date().toLocaleString('cs-CZ')}</p>
+        <p><strong>Období dat:</strong> ${getDateRangeText()}</p>
+        <p><strong>Celkem datových bodů:</strong> ${getTotalDataPoints()}</p>
+    </div>
+    
+    <div class="stats-grid">
+        ${stats.map(stat => `
+            <div class="stat-card">
+                <div class="stat-value">${stat.value}</div>
+                <div class="stat-label">${stat.label}</div>
+            </div>
+        `).join('')}
+    </div>
+    
+    <div class="charts-container">
+        <div class="chart-section">
+            <div class="chart-wrapper">
+                ${levelChartSVG}
+            </div>
+        </div>
+        
+        <div class="chart-section">
+            <div class="chart-wrapper">
+                ${outflowChartSVG}
+            </div>
+        </div>
+    </div>
+    
+    <div class="print-footer">
+        <p>Vygenerováno systémem PondMonitor • ${window.location.hostname} • ${new Date().toLocaleDateString('cs-CZ')}</p>
+    </div>
+</body>
+</html>`;
+  
+  printWindow.document.write(printHTML);
+  printWindow.document.close();
+  
+  // Wait for content to load, then print
+  printWindow.onload = () => {
+    setTimeout(() => {
+      printWindow.print();
+      setTimeout(() => printWindow.close(), 1000);
+    }, 500);
+  };
+}
+
+// Helper functions for print optimization
+function getDateRangeText() {
+  const rangeBtn = document.querySelector('.range-btn.btn-primary');
+  if (rangeBtn) {
+    const hours = parseInt(rangeBtn.dataset.hours);
+    if (hours === 24) return 'Posledních 24 hodin';
+    if (hours === 72) return 'Poslední 3 dny';  
+    if (hours === 168) return 'Poslední týden';
+    if (hours === 720) return 'Poslední měsíc';
+  }
+  return 'Vybrané období';
+}
+
+function getTotalDataPoints() {
+  if (!currentData) return '0';
+  const levelCount = currentData.level ? currentData.level.length : 0;
+  const outflowCount = currentData.outflow ? currentData.outflow.length : 0;
+  return `${levelCount + outflowCount}`;
+}
+
+function getFormattedStats() {
+  const stats = [];
+  
+  if (currentData && currentData.level.length > 0) {
+    const latestLevel = currentData.level[currentData.level.length - 1][1];
+    const maxLevel = Math.max(...currentData.level.map(p => p[1]));
+    const minLevel = Math.min(...currentData.level.map(p => p[1]));
+    const avgLevel = currentData.level.reduce((sum, p) => sum + p[1], 0) / currentData.level.length;
+    
+    stats.push(
+      { value: `${latestLevel.toFixed(2)} cm`, label: 'Aktuální hladina' },
+      { value: `${maxLevel.toFixed(2)} cm`, label: 'Maximální hladina' },
+      { value: `${minLevel.toFixed(2)} cm`, label: 'Minimální hladina' },
+      { value: `${avgLevel.toFixed(2)} cm`, label: 'Průměrná hladina' }
+    );
+  }
+  
+  if (currentData && currentData.outflow.length > 0) {
+    const latestOutflow = currentData.outflow[currentData.outflow.length - 1][1];
+    const maxOutflow = Math.max(...currentData.outflow.map(p => p[1]));
+    const avgOutflow = currentData.outflow.reduce((sum, p) => sum + p[1], 0) / currentData.outflow.length;
+    
+    stats.push(
+      { value: `${latestOutflow.toFixed(2)} l/s`, label: 'Aktuální průtok' },
+      { value: `${maxOutflow.toFixed(2)} l/s`, label: 'Maximální průtok' },
+      { value: `${avgOutflow.toFixed(2)} l/s`, label: 'Průměrný průtok' }
+    );
+  }
+  
+  return stats.slice(0, 8); // Limit to fit the grid
 }
 
 // Update charts when theme changes
