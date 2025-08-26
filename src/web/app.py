@@ -152,7 +152,7 @@ def register_routes(app: Flask) -> None:
     # API ROUTES (enhanced with new services)
     # =================================================================
     
-    @app.route("/health")
+    @app.route("/health", endpoint="health_check")
     @log_requests
     @handle_errors
     def health_check():
@@ -193,7 +193,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(status)
     
-    @app.route("/api/status")
+    @app.route("/api/status", endpoint="api_status")
     @log_requests
     @handle_errors
     def get_status():
@@ -236,7 +236,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(response_data)
     
-    @app.route("/api/dashboard")
+    @app.route("/api/dashboard", endpoint="api_dashboard")
     @log_requests
     @handle_errors
     def api_dashboard():
@@ -281,7 +281,7 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Dashboard API error: {e}", exc_info=True)
             raise
     
-    @app.route("/api/lora")
+    @app.route("/api/lora", endpoint="api_lora")
     @log_requests
     @handle_errors
     def diagnostics_data():
@@ -335,7 +335,7 @@ def register_routes(app: Flask) -> None:
     # WEATHER API ROUTES (using new weather service)
     # =================================================================
     
-    @app.route("/api/weather/current")
+    @app.route("/api/weather/current", endpoint="weather_current")
     @log_requests
     @handle_errors
     def weather_current():
@@ -363,7 +363,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(response)
     
-    @app.route("/api/weather/meteogram")
+    @app.route("/api/weather/meteogram", endpoint="weather_meteogram")
     @log_requests
     @handle_errors
     def weather_meteogram():
@@ -391,7 +391,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(result)
     
-    @app.route("/api/weather/daily")
+    @app.route("/api/weather/daily", endpoint="weather_daily")
     @log_requests
     @handle_errors
     def daily_forecast():
@@ -419,7 +419,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(result)
     
-    @app.route("/api/weather/stats")
+    @app.route("/api/weather/stats", endpoint="weather_stats")
     @log_requests
     @handle_errors
     def weather_stats():
@@ -437,7 +437,7 @@ def register_routes(app: Flask) -> None:
     # ENHANCED EXPORT ROUTES (using new export service)
     # =================================================================
     
-    @app.route("/api/export/formats")
+    @app.route("/api/export/formats", endpoint="export_formats")
     @log_requests
     @handle_errors
     def export_formats():
@@ -445,7 +445,7 @@ def register_routes(app: Flask) -> None:
         formats = export_service.get_export_formats()
         return jsonify(formats)
     
-    @app.route("/api/export/estimate")
+    @app.route("/api/export/estimate", endpoint="export_estimate")
     @log_requests
     @handle_errors
     def export_estimate():
@@ -473,7 +473,7 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Export estimation error: {e}")
             raise
     
-    @app.route("/api/export/<format>")
+    @app.route("/api/export/<format>", endpoint="export_data")
     @log_requests
     @handle_errors
     def export_data(format: str):
@@ -535,7 +535,7 @@ def register_routes(app: Flask) -> None:
     # ADVANCED EXPORT ROUTES (Week 2 Enhancement)
     # =================================================================
     
-    @app.route("/api/advanced-export/config")
+    @app.route("/api/advanced-export/config", endpoint="advanced_export_config")
     @log_requests
     @handle_errors
     def get_advanced_export_config():
@@ -562,7 +562,7 @@ def register_routes(app: Flask) -> None:
         
         return jsonify(config_options)
     
-    @app.route("/api/advanced-export/estimate", methods=["POST"])
+    @app.route("/api/advanced-export/estimate", methods=["POST"], endpoint="advanced_export_estimate")
     @log_requests
     @handle_errors
     @validate_json
@@ -592,7 +592,7 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Advanced export estimation error: {e}")
             raise
     
-    @app.route("/api/advanced-export", methods=["POST"])
+    @app.route("/api/advanced-export", methods=["POST"], endpoint="advanced_export")
     @log_requests
     @handle_errors
     @validate_json
@@ -655,7 +655,7 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Advanced export error: {e}")
             raise
     
-    @app.route("/api/advanced-export/progress/<job_id>")
+    @app.route("/api/advanced-export/progress/<job_id>", endpoint="advanced_export_progress")
     @log_requests
     @handle_errors
     def advanced_export_progress(job_id: str):
@@ -667,6 +667,55 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             logger.error(f"Export progress error: {e}")
             raise
+    
+    # =================================================================
+    # LOGS API ENDPOINT
+    # =================================================================
+    
+    @app.route("/api/logs", endpoint="api_logs")
+    @log_requests
+    @handle_errors
+    def get_system_logs():
+        """Get system logs for diagnostics"""
+        try:
+            limit = int(request.args.get('limit', 50))
+            limit = min(limit, 200)  # Cap at 200 logs
+            
+            # Mock logs for now - in a real implementation, this would read from actual log files
+            # or a logging database
+            logs = [
+                {
+                    'timestamp': datetime.now().isoformat(),
+                    'level': 'INFO',
+                    'message': 'System health check completed successfully'
+                },
+                {
+                    'timestamp': (datetime.now() - timedelta(minutes=5)).isoformat(),
+                    'level': 'INFO',
+                    'message': 'Database connection pool refreshed'
+                },
+                {
+                    'timestamp': (datetime.now() - timedelta(minutes=10)).isoformat(),
+                    'level': 'WARNING',
+                    'message': 'Signal strength below optimal threshold: -95 dBm'
+                },
+                {
+                    'timestamp': (datetime.now() - timedelta(minutes=15)).isoformat(),
+                    'level': 'INFO',
+                    'message': 'Weather data cache updated'
+                },
+                {
+                    'timestamp': (datetime.now() - timedelta(minutes=20)).isoformat(),
+                    'level': 'ERROR',
+                    'message': 'Failed to connect to sensor: timeout after 30s'
+                }
+            ]
+            
+            return jsonify(logs[:limit])
+            
+        except Exception as e:
+            logger.error(f"Error fetching system logs: {e}")
+            return jsonify([]), 500
 
 
 # Application factory
