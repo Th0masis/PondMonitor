@@ -172,7 +172,7 @@ class AdvancedExportService:
                 config.end_time, 
                 config.limit
             )
-            data['pond_metrics'] = pond_metrics
+            data['pond_metrics'] = pond_metrics.to_dict() if hasattr(pond_metrics, 'to_dict') else pond_metrics
         
         # Get station metrics if requested
         if 'station_metrics' in config.data_types:
@@ -182,6 +182,10 @@ class AdvancedExportService:
                 config.station_id,
                 config.limit
             )
+            
+            # Convert to dict format
+            if hasattr(station_metrics, 'to_dict'):
+                station_metrics = station_metrics.to_dict()
             
             # Apply filtering
             if config.temperature_range or config.battery_range or config.signal_range:
@@ -289,17 +293,21 @@ class AdvancedExportService:
             ws[f'A{row}'].font = Font(bold=True)
             row += 1
         
-        # Auto-fit columns
+        # Auto-fit columns (skip merged cells)
         for column in ws.columns:
             max_length = 0
-            column_letter = column[0].column_letter
+            column_letter = None
             for cell in column:
                 try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
+                    # Skip merged cells that don't have column_letter
+                    if hasattr(cell, 'column_letter'):
+                        column_letter = cell.column_letter
+                        if cell.value and len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
                 except:
                     pass
-            ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
+            if column_letter:
+                ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
     
     def _create_pond_metrics_sheet(self, workbook: openpyxl.Workbook, 
                                  data: List[Dict[str, Any]], 
@@ -606,11 +614,12 @@ class AdvancedExportService:
         return aggregated
     
     def _update_progress(self, export_id: str, progress: int, message: str, 
-                        callback: Callable):
+                        callback: Callable = None):
         """Update export progress"""
         try:
             self.export_progress[export_id] = {
                 'progress': progress,
+                'status': message,  # Use 'status' to match test expectation
                 'message': message,
                 'timestamp': datetime.now().isoformat()
             }
@@ -628,6 +637,176 @@ class AdvancedExportService:
             'message': 'Export not found',
             'timestamp': datetime.now().isoformat()
         })
+
+    def get_filter_ranges(self) -> Dict[str, Dict[str, float]]:
+        """Get filter ranges for temperature, battery, and signal strength"""
+        try:
+            # Query database for min/max values
+            query = """
+            SELECT 
+                MIN(temperature_c) as min_temp, MAX(temperature_c) as max_temp,
+                MIN(battery_v) as min_battery, MAX(battery_v) as max_battery,
+                MIN(signal_dbm) as min_signal, MAX(signal_dbm) as max_signal
+            FROM station_metrics 
+            WHERE timestamp > NOW() - INTERVAL '30 days'
+            """
+            
+            result = self.db.execute_query(query)
+            row = result.fetchone()
+            
+            if row:
+                return {
+                    'temperature_range': {
+                        'min': row.get('min_temp', 0),
+                        'max': row.get('max_temp', 40),
+                        'absolute_min': -20,
+                        'absolute_max': 60
+                    },
+                    'battery_range': {
+                        'min': row.get('min_battery', 10),
+                        'max': row.get('max_battery', 15),
+                        'absolute_min': 8,
+                        'absolute_max': 16
+                    },
+                    'signal_range': {
+                        'min': row.get('min_signal', -120),
+                        'max': row.get('max_signal', -40),
+                        'absolute_min': -130,
+                        'absolute_max': -30
+                    }
+                }
+        except Exception as e:
+            logger.warning(f"Failed to get filter ranges: {e}")
+        
+        # Return default ranges if query fails
+        return {
+            'temperature_range': {'min': 0, 'max': 40, 'absolute_min': -20, 'absolute_max': 60},
+            'battery_range': {'min': 10, 'max': 15, 'absolute_min': 8, 'absolute_max': 16},
+            'signal_range': {'min': -120, 'max': -40, 'absolute_min': -130, 'absolute_max': -30}
+        }
+
+    def estimate_export(self, config: AdvancedExportConfig) -> Dict[str, Any]:
+        """Estimate export size and processing time"""
+        try:
+            # Count records for each data type
+            record_count = 0
+            
+            if config.data_types:
+                for data_type in config.data_types:
+                    if data_type == 'pond_metrics':
+                        query = "SELECT COUNT(*) as count FROM pond_metrics WHERE timestamp BETWEEN %s AND %s"
+                    elif data_type == 'station_metrics':
+                        query = "SELECT COUNT(*) as count FROM station_metrics WHERE timestamp BETWEEN %s AND %s"
+                    else:
+                        continue
+                    
+                    result = self.db.execute_query(query, (config.start_time, config.end_time))
+                    row = result.fetchone()
+                    record_count += row.get('count', 0) if row else 0
+            
+            # Estimate file size (rough calculation)
+            if config.format == 'excel':
+                estimated_size = record_count * 150  # ~150 bytes per row in Excel
+            elif config.format == 'csv':
+                estimated_size = record_count * 80   # ~80 bytes per row in CSV
+            else:  # json
+                estimated_size = record_count * 200  # ~200 bytes per row in JSON
+            
+            # Estimate processing time (rough calculation)
+            estimated_time = max(5, record_count // 1000)  # Minimum 5 seconds
+            
+            return {
+                'records_count': record_count,
+                'file_size': estimated_size,
+                'estimated_time': estimated_time,
+                'data_types_count': len(config.data_types) if config.data_types else 0
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to estimate export: {e}")
+            return {
+                'records_count': 0,
+                'file_size': 0,
+                'estimated_time': 5,
+                'data_types_count': 0
+            }
+
+    def _apply_filters(self, data: List[Dict[str, Any]], config: AdvancedExportConfig) -> List[Dict[str, Any]]:
+        """Apply filtering to data based on configuration"""
+        filtered_data = data
+        
+        # Temperature filtering
+        if config.temperature_range:
+            min_temp, max_temp = config.temperature_range
+            filtered_data = [
+                row for row in filtered_data 
+                if 'temperature' in row and min_temp <= row['temperature'] <= max_temp
+            ]
+        
+        # Battery filtering (convert voltage to percentage)
+        if config.battery_range:
+            min_battery, max_battery = config.battery_range
+            filtered_data = [
+                row for row in filtered_data 
+                if 'battery_voltage' in row and self._voltage_to_percentage(row['battery_voltage'], min_battery, max_battery)
+            ]
+        
+        # Signal filtering  
+        if config.signal_range:
+            min_signal, max_signal = config.signal_range
+            filtered_data = [
+                row for row in filtered_data 
+                if 'signal_strength' in row and min_signal <= row['signal_strength'] <= max_signal
+            ]
+        
+        return filtered_data
+    
+    def _voltage_to_percentage(self, voltage: float, min_range: int, max_range: int) -> bool:
+        """Convert voltage to percentage and check if in range"""
+        # Simple voltage to percentage conversion (12V system)
+        percentage = ((voltage - 10.0) / (14.0 - 10.0)) * 100
+        return min_range <= percentage <= max_range
+
+    def export_advanced(self, config: AdvancedExportConfig):
+        """Perform advanced export with enhanced features"""
+        try:
+            self._update_progress(config.export_id, 10, "Starting export...", config.progress_callback)
+            
+            # Get filtered data
+            self._update_progress(config.export_id, 30, "Fetching data...", config.progress_callback)
+            all_data = self._get_filtered_data(config)
+            
+            # Apply additional filters
+            self._update_progress(config.export_id, 50, "Applying filters...", config.progress_callback)
+            for data_type, data in all_data.items():
+                all_data[data_type] = self._apply_filters(data, config)
+            
+            # Aggregate data if requested
+            if config.aggregation != 'raw':
+                self._update_progress(config.export_id, 70, "Aggregating data...", config.progress_callback)
+                all_data = self._aggregate_data(all_data, config.aggregation)
+            
+            # Generate export
+            self._update_progress(config.export_id, 90, "Generating export...", config.progress_callback)
+            
+            if config.format == 'excel':
+                result = self.create_advanced_excel_export(config)
+            elif config.format == 'csv':
+                # Use base service for CSV
+                result = self.base_service.export_data(config).encode('utf-8')
+            elif config.format == 'json':
+                # Use base service for JSON
+                result = self.base_service.export_data(config).encode('utf-8')
+            else:
+                raise ValueError(f"Unsupported export format: {config.format}")
+            
+            self._update_progress(config.export_id, 100, "Export completed", config.progress_callback)
+            return result
+            
+        except Exception as e:
+            self._update_progress(config.export_id, -1, f"Export failed: {str(e)}", config.progress_callback)
+            logger.error(f"Advanced export failed: {e}")
+            raise
 
 
 def create_advanced_export_service(db_service: DatabaseService) -> AdvancedExportService:

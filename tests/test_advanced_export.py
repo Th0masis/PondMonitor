@@ -69,9 +69,8 @@ class TestAdvancedExportService:
         """Create mock database service"""
         db_service = Mock(spec=DatabaseService)
         
-        # Mock pond metrics data
-        pond_result = Mock()
-        pond_result.to_dict = Mock(return_value=[
+        # Mock pond metrics data - Create a list that supports both to_dict() and len()
+        pond_data = [
             {
                 'timestamp': datetime(2024, 1, 1, 12, 0, 0),
                 'water_level': 25.5,
@@ -84,11 +83,15 @@ class TestAdvancedExportService:
                 'outflow': 1.1,
                 'temperature': 19.0
             }
-        ])
+        ]
+        
+        pond_result = Mock()
+        pond_result.to_dict = Mock(return_value=pond_data)
+        pond_result.__len__ = Mock(return_value=len(pond_data))
+        pond_result.__iter__ = Mock(return_value=iter(pond_data))
         
         # Mock station metrics data
-        station_result = Mock()
-        station_result.to_dict = Mock(return_value=[
+        station_data = [
             {
                 'timestamp': datetime(2024, 1, 1, 12, 0, 0),
                 'battery_voltage': 12.5,
@@ -103,7 +106,12 @@ class TestAdvancedExportService:
                 'solar_voltage': 5.0,
                 'temperature': 23.0
             }
-        ])
+        ]
+        
+        station_result = Mock()
+        station_result.to_dict = Mock(return_value=station_data)
+        station_result.__len__ = Mock(return_value=len(station_data))
+        station_result.__iter__ = Mock(return_value=iter(station_data))
         
         db_service.get_pond_metrics.return_value = pond_result
         db_service.get_station_metrics.return_value = station_result
@@ -262,23 +270,20 @@ class TestAdvancedExportService:
     
     def test_aggregate_data_hourly(self, advanced_export_service):
         """Test hourly data aggregation"""
-        data = [
-            {'timestamp': datetime(2024, 1, 1, 12, 15), 'temperature': 20.0, 'value': 1},
-            {'timestamp': datetime(2024, 1, 1, 12, 30), 'temperature': 21.0, 'value': 2},
-            {'timestamp': datetime(2024, 1, 1, 13, 15), 'temperature': 22.0, 'value': 3}
-        ]
+        data = {
+            'pond_metrics': [
+                {'timestamp': datetime(2024, 1, 1, 12, 15), 'temperature_c': 20.0, 'level_cm': 100},
+                {'timestamp': datetime(2024, 1, 1, 12, 30), 'temperature_c': 21.0, 'level_cm': 101},
+                {'timestamp': datetime(2024, 1, 1, 13, 15), 'temperature_c': 22.0, 'level_cm': 102}
+            ]
+        }
         
-        config = AdvancedExportConfig(
-            start_time=datetime.now(timezone.utc) - timedelta(days=1),
-            end_time=datetime.now(timezone.utc),
-            aggregation='hourly'
-        )
-        
-        aggregated = advanced_export_service._aggregate_data(data, config)
+        aggregated = advanced_export_service._aggregate_data(data, 'hourly')
         
         # Should group by hour and average values
-        assert len(aggregated) <= len(data)  # Same or fewer records after aggregation
-        assert isinstance(aggregated, list)
+        assert isinstance(aggregated, dict)
+        assert 'pond_metrics' in aggregated
+        assert len(aggregated['pond_metrics']) <= len(data['pond_metrics'])  # Same or fewer records after aggregation
     
     def test_progress_tracking(self, advanced_export_service):
         """Test export progress tracking"""
