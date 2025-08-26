@@ -832,6 +832,42 @@ Successfully fixed all 10 failing tests in the PondMonitor test suite by address
 - **Loading Speed**: Fast chart export with optimized dimensions
 - **Professional Output**: Publication-ready charts with proper formatting
 
+### 🕐 **Time Format Standardization**
+*Completed: 2025-08-26*
+
+#### **24-Hour Time Format Implementation**
+
+**✅ Comprehensive Time Format Update**
+- **Issue**: Inconsistent time formatting across Dashboard and Export functionality using 12-hour format (AM/PM)
+- **Solution**: Standardized all time displays to 24-hour format (HH:MM) while maintaining Czech localization
+- **Implementation**: Added `hour12: false` parameter to all JavaScript date formatting functions
+
+**📋 Files Modified**:
+- **`src/web/static/js/base.js`** (line 85): Updated core `formatDate` function for 24-hour format
+- **`src/web/static/js/dashboard.js`** (lines 333, 406, 553, 720): Updated chart data tables and export timestamps
+- **`src/web/static/js/diagnostics.js`** (lines 308, 320, 331, 507): Updated system diagnostics and log timestamps
+
+**🔧 Technical Changes**:
+- **Base Formatting**: Modified `PondUtils.formatDate()` to enforce 24-hour format globally
+- **Dashboard Components**: Updated print functionality timestamps for professional output
+- **Diagnostics Page**: Standardized heartbeat, measurement, and system log timestamps
+- **Export Features**: Ensured all export metadata uses consistent 24-hour format
+- **Maintained Localization**: Preserved Czech locale (`cs-CZ`) throughout all changes
+
+**📊 Impact & Benefits**:
+- **Consistency**: Unified time display format across all application components
+- **Professional Appearance**: 24-hour format aligns with technical and professional standards
+- **User Experience**: Eliminates confusion between AM/PM time formats
+- **Localization Preserved**: Maintains Czech date/time conventions while using 24-hour format
+- **Export Quality**: Professional timestamps in all exported data and printed materials
+
+#### **Areas Updated**:
+- **Dashboard**: Charts, statistics, and export functionality
+- **Diagnostics**: System status, logs, and device timestamps  
+- **Export Interface**: All export formats and progress tracking
+- **Print Functionality**: Chart exports and report timestamps
+- **Base Utilities**: Core date formatting functions
+
 ---
 
 ## 🔔 **Week 3: Smart Alerting** 
