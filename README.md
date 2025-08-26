@@ -25,17 +25,73 @@
 
 Choose your installation method:
 
-### **👥 For End Users (Production Deployment)**
-Download the latest stable release - contains only essential files:
+### **👥 For End Users (Ready-to-Use Package)**
 
+**📦 Option 1: Download Pre-Built Package** *(Recommended)*
 ```bash
-# Download latest release
+# Download the latest stable release
+wget https://github.com/Th0masis/PondMonitor/releases/latest/download/pondmonitor-latest.zip
+
+# Extract and run (Windows/Linux/Mac)
+unzip pondmonitor-latest.zip
+cd pondmonitor-*/
+./start.sh    # Linux/Mac
+# or
+start.bat     # Windows
+
+# Open your browser to: http://localhost:5005
+```
+
+**🐳 Option 2: Docker (If you have Docker installed)**
+```bash
+# Download and run with Docker
 curl -L https://github.com/Th0masis/PondMonitor/releases/latest/download/pondmonitor-latest.tar.gz | tar -xz
 cd pondmonitor-*/
-docker compose -f docker/docker-compose.yml --env-file .env up -d
+docker compose up -d
 
 # Access at http://localhost:5005
 ```
+
+**🌐 Option 3: Try Demo Online**
+Visit **[demo.pondmonitor.example](http://demo.pondmonitor.example)** to try the system without installation.
+
+---
+
+### **📱 How to Use PondMonitor (End User Guide)**
+
+Once running, access **http://localhost:5005** in your browser:
+
+#### **🏠 Dashboard Page**
+- **View real-time data**: Water level and outflow measurements
+- **Time ranges**: Switch between 24h, 3 days, 1 week, 1 month views
+- **Print reports**: Click "Tisknout grafy" for professional PDF reports
+- **Quick actions**: Access advanced export features
+
+#### **🌤️ Weather Page**
+- **Current conditions**: Temperature, humidity, pressure from weather station
+- **48-hour forecast**: Detailed hourly weather predictions
+- **7-day outlook**: Weekly weather summary
+- **Weather statistics**: Historical weather data analysis
+
+#### **🔧 Diagnostics Page**
+- **System health**: Overall system status and performance
+- **Station status**: Battery level, signal strength, connectivity
+- **System logs**: View recent system events and errors
+- **Diagnostic tools**: Test connection, export diagnostics, restart device
+
+#### **📊 Export Page**
+- **Date range selection**: Choose specific time periods for data export
+- **Data types**: Select pond data, station diagnostics, or weather data
+- **Export formats**: Excel (with charts), CSV, or JSON formats
+- **Advanced filters**: Filter by temperature, battery, or signal ranges
+- **Real-time preview**: See export size and estimated processing time
+
+#### **⚙️ Quick Tips**
+- **🔄 Auto-refresh**: Data updates every 30 seconds automatically
+- **📱 Mobile friendly**: Works perfectly on phones and tablets  
+- **🖨️ Print ready**: Professional reports optimized for A4 printing
+- **🌓 Dark/Light themes**: Toggle theme in the navigation menu
+- **⏰ Czech localization**: Dates, times, and messages in Czech language
 
 ### **🧑‍💻 For Developers (Full Repository)**
 Clone the complete repository for development and contributions:

@@ -1,5 +1,47 @@
 # PondMonitor User Guide
 
+## 📦 Installation for End Users
+
+### **Option 1: Pre-Built Package (Easiest)**
+
+1. **Download the latest release** from GitHub:
+   - Go to: https://github.com/Th0masis/PondMonitor/releases/latest
+   - Download `pondmonitor-latest.zip` (Windows/Mac/Linux)
+   
+2. **Extract and run**:
+   ```bash
+   # Extract the zip file
+   unzip pondmonitor-latest.zip
+   cd pondmonitor-*
+   
+   # Run the application
+   ./start.sh      # On Linux/Mac
+   start.bat       # On Windows
+   ```
+   
+3. **Open your browser** to http://localhost:5005
+
+### **Option 2: Using Docker**
+
+If you have Docker installed:
+```bash
+# Download and extract
+curl -L https://github.com/Th0masis/PondMonitor/releases/latest/download/pondmonitor-latest.tar.gz | tar -xz
+cd pondmonitor-*
+
+# Run with Docker
+docker compose up -d
+
+# Access at http://localhost:5005
+```
+
+### **Option 3: Try Demo Online**
+
+Visit the online demo to try the system without installing anything:
+**[demo.pondmonitor.example](http://demo.pondmonitor.example)**
+
+---
+
 ## 📱 Web Interface User Guide
 
 This guide covers how to use the PondMonitor web interface effectively. The interface is designed to be intuitive and responsive, working seamlessly on desktop, tablet, and mobile devices.
@@ -317,6 +359,49 @@ The sidebar displays real-time connection status:
 - **Date Format:** ISO/Local/Custom
 - **Decimal Places:** Precision settings
 - **Include Headers:** Column names option
+
+### **🖨️ Professional Print Functionality**
+*Enhanced feature for high-quality reports*
+
+#### **Dashboard Print Features**
+- **Print Button Location:** Dashboard page → "Quick Actions" → "Tisknout grafy"
+- **Professional Layout:** A4 landscape format optimized for charts
+- **High-Quality Output:** SVG-based charts for crisp printing
+- **Complete Reports:** Includes statistics, charts, and metadata
+
+#### **What's Included in Print**
+- **Report Header:** PondMonitor title with export timestamp
+- **Time Period:** Shows selected date range (24h, 3 days, week, month)
+- **Statistics Grid:** Key metrics (current, min, max, average values)
+- **Charts:** Both water level and outflow charts with professional styling
+- **Footer:** Generation timestamp and system attribution
+
+#### **Print Quality Features**
+- **Optimized Dimensions:** 800px × 350px charts perfect for A4 landscape
+- **Print Colors:** Black/gray text optimized for monochrome printing
+- **Professional Typography:** 18px titles, 14px subtitles, 12px details
+- **Page Layout:** Single-column layout maximizing chart visibility
+- **No Page Breaks:** Charts never split across pages
+
+#### **Browser Compatibility**
+- ✅ **Works in:** Chrome, Firefox, Edge, Opera, Safari
+- ✅ **Mobile Support:** Print functionality available on tablets
+- ✅ **Popup Handling:** Clear error messages if popups are blocked
+- ✅ **Fallback Options:** Data tables if chart export fails
+
+#### **How to Print**
+1. **Navigate to Dashboard** page
+2. **Select time range** (24h, 3 days, 1 week, 1 month)
+3. **Wait for data to load** (charts must be visible)
+4. **Click "Tisknout grafy"** in Quick Actions section
+5. **Print window opens** with professional report layout
+6. **Use browser print dialog** to save as PDF or print to paper
+
+#### **Print Tips**
+- **Best Quality:** Use "Print to PDF" for digital reports
+- **Paper Setting:** Choose A4 landscape in printer settings
+- **Color Options:** Works well in both color and black & white
+- **File Sharing:** PDF exports are perfect for email reports
 
 ## 🆘 Troubleshooting UI Issues
 
