@@ -330,7 +330,7 @@ function printChartsEnhanced(levelChart, outflowChart) {
                 <tbody>
                   ${recentData.map(point => `
                     <tr>
-                      <td style="border: 1px solid #ddd; padding: 8px;">${new Date(point.x || point[0]).toLocaleString('cs-CZ')}</td>
+                      <td style="border: 1px solid #ddd; padding: 8px;">${new Date(point.x || point[0]).toLocaleString('cs-CZ', { hour12: false })}</td>
                       <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${(point.y || point[1]).toFixed(2)}</td>
                     </tr>
                   `).join('')}
@@ -403,7 +403,7 @@ function printChartsEnhanced(levelChart, outflowChart) {
                 <tbody>
                   ${recentData.map(point => `
                     <tr>
-                      <td style="border: 1px solid #ddd; padding: 8px;">${new Date(point.x || point[0]).toLocaleString('cs-CZ')}</td>
+                      <td style="border: 1px solid #ddd; padding: 8px;">${new Date(point.x || point[0]).toLocaleString('cs-CZ', { hour12: false })}</td>
                       <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${(point.y || point[1]).toFixed(2)}</td>
                     </tr>
                   `).join('')}
@@ -550,7 +550,7 @@ function printChartsEnhanced(levelChart, outflowChart) {
 <body>
     <div class="print-header">
         <h1>🐟 PondMonitor Dashboard</h1>
-        <p><strong>Datum exportu:</strong> ${new Date().toLocaleString('cs-CZ')}</p>
+        <p><strong>Datum exportu:</strong> ${new Date().toLocaleString('cs-CZ', { hour12: false })}</p>
         <p><strong>Období dat:</strong> ${getDateRangeText()}</p>
         <p><strong>Celkem datových bodů:</strong> ${getTotalDataPoints()}</p>
     </div>
@@ -717,7 +717,7 @@ function printChartsSimple() {
     <div style="display: none;">
       <h1 style="text-align: center; margin-bottom: 1rem;">🐟 PondMonitor Dashboard</h1>
       <p style="text-align: center; margin-bottom: 2rem;">
-        <strong>Datum exportu:</strong> ${new Date().toLocaleString('cs-CZ')} | 
+        <strong>Datum exportu:</strong> ${new Date().toLocaleString('cs-CZ', { hour12: false })} | 
         <strong>Období:</strong> ${getDateRangeText()}
       </p>
     </div>

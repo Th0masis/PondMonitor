@@ -305,7 +305,7 @@ function updateStatusCards(data) {
     details: [
       `Síla signálu: ${data.signal_dbm} dBm`,
       `Kvalita: ${signal.quality} ${signal.icon}`,
-      `Poslední heartbeat: ${new Date(data.last_heartbeat).toLocaleTimeString('cs-CZ')}`
+      `Poslední heartbeat: ${new Date(data.last_heartbeat).toLocaleTimeString('cs-CZ', { hour12: false })}`
     ],
     status: data.connected ? 'good' : 'error'
   });
@@ -317,7 +317,7 @@ function updateStatusCards(data) {
     value: `${data.temperature_c?.toFixed(1) || 'N/A'}°C`,
     details: [
       `Interní čidlo`,
-      `Poslední měření: ${data.last_reading ? new Date(data.last_reading).toLocaleTimeString('cs-CZ') : 'N/A'}`
+      `Poslední měření: ${data.last_reading ? new Date(data.last_reading).toLocaleTimeString('cs-CZ', { hour12: false }) : 'N/A'}`
     ],
     status: 'good'
   });
@@ -328,7 +328,7 @@ function updateStatusCards(data) {
     icon: '⏱️',
     value: formatUptime(data.uptime_seconds || 0),
     details: [
-      `Od: ${data.boot_time ? new Date(data.boot_time).toLocaleString('cs-CZ') : 'N/A'}`,
+      `Od: ${data.boot_time ? new Date(data.boot_time).toLocaleString('cs-CZ', { hour12: false }) : 'N/A'}`,
       `Restart count: ${data.restart_count || 0}`
     ],
     status: 'good'
@@ -504,7 +504,7 @@ async function refreshLogs() {
     }
     
     container.innerHTML = logs.map(log => {
-      const date = new Date(log.timestamp).toLocaleString('cs-CZ');
+      const date = new Date(log.timestamp).toLocaleString('cs-CZ', { hour12: false });
       const levelColors = {
         'ERROR': 'var(--color-red)',
         'WARNING': 'var(--color-yellow)',
