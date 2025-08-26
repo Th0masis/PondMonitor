@@ -671,8 +671,28 @@ class AdvancedExportManager {
                 mimeType: 'application/json'
             };
         } else {
-            // Excel format fallback - create CSV content but with Excel metadata
-            let csvContent = 'Timestamp,Level_cm,Outflow_lps,Temperature_C,Battery_pct\n';
+            // Excel format - generate HTML table that Excel can import
+            let excelContent = `<?xml version="1.0"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+    xmlns:o="urn:schemas-microsoft-com:office:office"
+    xmlns:x="urn:schemas-microsoft-com:office:excel"
+    xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+    xmlns:html="http://www.w3.org/TR/REC-html40">
+<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+    <Author>PondMonitor System</Author>
+    <Created>${new Date().toISOString()}</Created>
+    <Company>PondMonitor</Company>
+    <Version>1.0</Version>
+</DocumentProperties>
+<Worksheet ss:Name="Pond Data">
+<Table>
+<Row>
+    <Cell><Data ss:Type="String">Timestamp</Data></Cell>
+    <Cell><Data ss:Type="String">Level (cm)</Data></Cell>
+    <Cell><Data ss:Type="String">Outflow (l/s)</Data></Cell>
+    <Cell><Data ss:Type="String">Temperature (°C)</Data></Cell>
+    <Cell><Data ss:Type="String">Battery (%)</Data></Cell>
+</Row>`;
             
             for (let i = 0; i < dataCount; i++) {
                 const time = new Date(startDate.getTime() + (i * (endDate - startDate) / dataCount));
@@ -681,13 +701,25 @@ class AdvancedExportManager {
                 const temperature = (Math.sin(i * 0.05) * 5 + 20 + Math.random() * 2).toFixed(1);
                 const battery = Math.max(20, 100 - Math.random() * 30).toFixed(0);
                 
-                csvContent += `${time.toISOString()},${level},${outflow},${temperature},${battery}\n`;
+                excelContent += `
+<Row>
+    <Cell><Data ss:Type="DateTime">${time.toISOString()}</Data></Cell>
+    <Cell><Data ss:Type="Number">${level}</Data></Cell>
+    <Cell><Data ss:Type="Number">${outflow}</Data></Cell>
+    <Cell><Data ss:Type="Number">${temperature}</Data></Cell>
+    <Cell><Data ss:Type="Number">${battery}</Data></Cell>
+</Row>`;
             }
             
+            excelContent += `
+</Table>
+</Worksheet>
+</Workbook>`;
+            
             return {
-                content: csvContent,
-                filename: `pond_demo_export_${timestamp}.xlsx`,
-                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                content: excelContent,
+                filename: `pond_demo_export_${timestamp}.xls`,
+                mimeType: 'application/vnd.ms-excel'
             };
         }
     }
