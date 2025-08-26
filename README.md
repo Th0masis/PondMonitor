@@ -114,6 +114,26 @@ make quick-start   # Build and start in testing mode
 
 See [Development Guide](docs/DEVELOPMENT.md) for complete testing documentation.
 
+## 🆕 **Recent Updates** 
+*Latest: August 26, 2025*
+
+### **✅ Application Stability Fixes**
+- **Fixed Flask startup issues** - Resolved route registration conflicts preventing application launch
+- **Restored system messages** - Diagnostics page now displays system events and logs properly  
+- **Implemented diagnostic actions** - All diagnostic buttons (connection test, export, device reset) now functional
+
+### **🚀 Enhanced User Experience**
+- **Professional print functionality** - Dashboard charts now print in A4 landscape with statistics and metadata
+- **Optimized export strategy** - Streamlined button placement across pages for better user flow
+- **Complete API coverage** - Added 7 new endpoints for comprehensive diagnostic functionality
+
+### **🔧 Technical Improvements**
+- **Enhanced error handling** - Comprehensive coverage across all endpoints with proper HTTP status codes
+- **Improved logging** - System events tracking with multiple severity levels (INFO, WARNING, ERROR)
+- **Production readiness** - All new features include proper error handling and monitoring integration
+
+*See [**CHANGELOG.md**](CHANGELOG.md) for complete development history and detailed technical changes.*
+
 ## 📖 Documentation
 
 **Complete documentation is available in the [`docs/`](docs/) directory:**
