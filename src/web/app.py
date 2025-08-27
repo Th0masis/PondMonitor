@@ -815,6 +815,394 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Device reset error: {e}")
             return jsonify({'error': 'Failed to send reset command'}), 500
 
+    # =================================================================
+    # ALERT MANAGEMENT ROUTES
+    # =================================================================
+    
+    @app.route("/alerts", endpoint="alerts_page")
+    @log_requests
+    @handle_errors
+    def alerts_page():
+        """Alert configuration and monitoring page"""
+        return render_template("alerts.html")
+    
+    # Alert Rules API
+    @app.route("/api/alerts/rules", endpoint="alert_rules_list")
+    @log_requests
+    @handle_errors
+    def get_alert_rules():
+        """Get all alert rules"""
+        try:
+            from src.services.alert_engine import get_alert_engine
+            
+            alert_engine = get_alert_engine()
+            rules = alert_engine.get_active_rules()
+            
+            # Convert to JSON-serializable format
+            rules_data = []
+            for rule in rules:
+                rules_data.append({
+                    'id': rule.id,
+                    'name': rule.name,
+                    'description': rule.description,
+                    'rule_type': rule.rule_type.value,
+                    'metric_type': rule.metric_type.value,
+                    'station_id': rule.station_id,
+                    'conditions': rule.conditions,
+                    'severity': rule.severity.value,
+                    'enabled': rule.enabled,
+                    'channels': rule.channels,
+                    'cooldown_minutes': rule.cooldown_minutes,
+                    'max_alerts_per_hour': rule.max_alerts_per_hour,
+                    'created_at': rule.created_at.isoformat() if rule.created_at else None,
+                    'updated_at': rule.updated_at.isoformat() if rule.updated_at else None
+                })
+            
+            return jsonify(rules_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get alert rules: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/alerts/rules", methods=["POST"], endpoint="create_alert_rule")
+    @log_requests
+    @handle_errors
+    @validate_json({
+        'name': {'type': 'string', 'required': True, 'minlength': 1},
+        'rule_type': {'type': 'string', 'required': True, 'allowed': ['threshold', 'range', 'rate_of_change', 'missing_data']},
+        'metric_type': {'type': 'string', 'required': True, 'allowed': ['water_level', 'temperature', 'battery_voltage', 'signal_strength', 'outflow']},
+        'conditions': {'type': 'dict', 'required': True},
+        'severity': {'type': 'string', 'required': True, 'allowed': ['info', 'warning', 'critical']}
+    })
+    def create_alert_rule():
+        """Create a new alert rule"""
+        try:
+            data = request.get_json()
+            
+            # Create rule in database
+            rule_id = str(__import__('uuid').uuid4())
+            
+            result = db_service.execute_query("""
+                INSERT INTO alert_rules 
+                (id, name, description, rule_type, metric_type, station_id, conditions, 
+                 severity, enabled, channels, cooldown_minutes, max_alerts_per_hour)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                rule_id,
+                data['name'],
+                data.get('description', ''),
+                data['rule_type'],
+                data['metric_type'],
+                data.get('station_id'),
+                json.dumps(data['conditions']),
+                data['severity'],
+                data.get('enabled', True),
+                json.dumps(data.get('channels', ['email'])),
+                data.get('cooldown_minutes', 60),
+                data.get('max_alerts_per_hour', 5)
+            ), fetch=False)
+            
+            logger.info(f"Created alert rule: {data['name']} (ID: {rule_id})")
+            return jsonify({'id': rule_id, 'message': 'Alert rule created successfully'})
+            
+        except Exception as e:
+            logger.error(f"Failed to create alert rule: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/alerts/rules/<rule_id>", methods=["PUT"], endpoint="update_alert_rule")
+    @log_requests
+    @handle_errors
+    def update_alert_rule(rule_id: str):
+        """Update an existing alert rule"""
+        try:
+            data = request.get_json()
+            
+            # Build update query dynamically
+            update_fields = []
+            params = []
+            
+            for field in ['name', 'description', 'rule_type', 'metric_type', 'station_id', 
+                         'severity', 'enabled', 'cooldown_minutes', 'max_alerts_per_hour']:
+                if field in data:
+                    update_fields.append(f"{field} = %s")
+                    params.append(data[field])
+            
+            if 'conditions' in data:
+                update_fields.append("conditions = %s")
+                params.append(json.dumps(data['conditions']))
+            
+            if 'channels' in data:
+                update_fields.append("channels = %s")
+                params.append(json.dumps(data['channels']))
+            
+            if not update_fields:
+                return jsonify({'error': 'No fields to update'}), 400
+            
+            update_fields.append("updated_at = NOW()")
+            params.append(rule_id)
+            
+            query = f"UPDATE alert_rules SET {', '.join(update_fields)} WHERE id = %s"
+            result = db_service.execute_query(query, tuple(params), fetch=False)
+            
+            if result.row_count == 0:
+                return jsonify({'error': 'Alert rule not found'}), 404
+            
+            logger.info(f"Updated alert rule: {rule_id}")
+            return jsonify({'message': 'Alert rule updated successfully'})
+            
+        except Exception as e:
+            logger.error(f"Failed to update alert rule: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/alerts/rules/<rule_id>", methods=["DELETE"], endpoint="delete_alert_rule")
+    @log_requests
+    @handle_errors
+    def delete_alert_rule(rule_id: str):
+        """Delete an alert rule"""
+        try:
+            result = db_service.execute_query(
+                "DELETE FROM alert_rules WHERE id = %s",
+                (rule_id,), fetch=False
+            )
+            
+            if result.row_count == 0:
+                return jsonify({'error': 'Alert rule not found'}), 404
+            
+            logger.info(f"Deleted alert rule: {rule_id}")
+            return jsonify({'message': 'Alert rule deleted successfully'})
+            
+        except Exception as e:
+            logger.error(f"Failed to delete alert rule: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    # Active Alerts API
+    @app.route("/api/alerts/active", endpoint="active_alerts_list")
+    @log_requests
+    @handle_errors
+    def get_active_alerts():
+        """Get all active alerts"""
+        try:
+            from src.services.alert_engine import get_alert_engine
+            
+            alert_engine = get_alert_engine()
+            station_id = request.args.get('station_id')
+            
+            active_alerts = alert_engine.get_active_alerts(station_id)
+            
+            alerts_data = []
+            for alert in active_alerts:
+                alerts_data.append({
+                    'id': alert.id,
+                    'rule_id': alert.rule_id,
+                    'severity': alert.severity.value,
+                    'metric_type': alert.metric_type.value,
+                    'station_id': alert.station_id,
+                    'triggered_at': alert.triggered_at.isoformat(),
+                    'trigger_value': alert.trigger_value,
+                    'threshold_value': alert.threshold_value,
+                    'message': alert.message,
+                    'status': alert.status.value,
+                    'acknowledged_at': alert.acknowledged_at.isoformat() if alert.acknowledged_at else None,
+                    'acknowledged_by': alert.acknowledged_by,
+                    'notifications_sent': alert.notifications_sent
+                })
+            
+            return jsonify(alerts_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get active alerts: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/alerts/<alert_id>/acknowledge", methods=["POST"], endpoint="acknowledge_alert")
+    @log_requests
+    @handle_errors
+    def acknowledge_alert(alert_id: str):
+        """Acknowledge an active alert"""
+        try:
+            from src.services.alert_engine import get_alert_engine
+            
+            data = request.get_json() or {}
+            acknowledged_by = data.get('acknowledged_by', 'user')
+            
+            alert_engine = get_alert_engine()
+            success = alert_engine.acknowledge_alert(alert_id, acknowledged_by)
+            
+            if success:
+                logger.info(f"Alert {alert_id} acknowledged by {acknowledged_by}")
+                return jsonify({'message': 'Alert acknowledged successfully'})
+            else:
+                return jsonify({'error': 'Alert not found or already acknowledged'}), 404
+                
+        except Exception as e:
+            logger.error(f"Failed to acknowledge alert: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/alerts/<alert_id>/resolve", methods=["POST"], endpoint="resolve_alert")
+    @log_requests
+    @handle_errors
+    def resolve_alert(alert_id: str):
+        """Resolve an alert"""
+        try:
+            from src.services.alert_engine import get_alert_engine
+            
+            data = request.get_json() or {}
+            resolved_by = data.get('resolved_by', 'user')
+            
+            alert_engine = get_alert_engine()
+            success = alert_engine.resolve_alert(alert_id, resolved_by)
+            
+            if success:
+                logger.info(f"Alert {alert_id} resolved by {resolved_by}")
+                return jsonify({'message': 'Alert resolved successfully'})
+            else:
+                return jsonify({'error': 'Alert not found or already resolved'}), 404
+                
+        except Exception as e:
+            logger.error(f"Failed to resolve alert: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    # Alert Statistics and History
+    @app.route("/api/alerts/statistics", endpoint="alert_statistics")
+    @log_requests
+    @handle_errors
+    def get_alert_statistics():
+        """Get alert statistics and engine status"""
+        try:
+            from src.services.alert_engine import get_alert_engine
+            
+            alert_engine = get_alert_engine()
+            stats = alert_engine.get_statistics()
+            
+            return jsonify(stats)
+            
+        except Exception as e:
+            logger.error(f"Failed to get alert statistics: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/alerts/history", endpoint="alert_history")
+    @log_requests
+    @handle_errors
+    def get_alert_history():
+        """Get alert history with filters"""
+        try:
+            # Parse query parameters
+            hours = int(request.args.get('hours', 24))
+            severity = request.args.get('severity')
+            station_id = request.args.get('station_id')
+            status = request.args.get('status')
+            limit = int(request.args.get('limit', 100))
+            
+            # Build query
+            query = """
+                SELECT id, rule_id, severity, metric_type, station_id, triggered_at,
+                       trigger_value, threshold_value, message, status,
+                       acknowledged_at, acknowledged_by, resolved_at, resolved_by
+                FROM alert_history
+                WHERE triggered_at > %s
+            """
+            params = [datetime.now(timezone.utc) - timedelta(hours=hours)]
+            
+            if severity:
+                query += " AND severity = %s"
+                params.append(severity)
+            
+            if station_id:
+                query += " AND station_id = %s"
+                params.append(station_id)
+            
+            if status:
+                query += " AND status = %s"
+                params.append(status)
+            
+            query += " ORDER BY triggered_at DESC LIMIT %s"
+            params.append(limit)
+            
+            result = db_service.execute_query(query, tuple(params))
+            
+            history_data = []
+            for row_dict in result.to_dict_list():
+                history_data.append({
+                    'id': row_dict['id'],
+                    'rule_id': row_dict['rule_id'],
+                    'severity': row_dict['severity'],
+                    'metric_type': row_dict['metric_type'],
+                    'station_id': row_dict['station_id'],
+                    'triggered_at': row_dict['triggered_at'].isoformat(),
+                    'trigger_value': row_dict['trigger_value'],
+                    'threshold_value': row_dict['threshold_value'],
+                    'message': row_dict['message'],
+                    'status': row_dict['status'],
+                    'acknowledged_at': row_dict['acknowledged_at'].isoformat() if row_dict['acknowledged_at'] else None,
+                    'acknowledged_by': row_dict['acknowledged_by'],
+                    'resolved_at': row_dict['resolved_at'].isoformat() if row_dict['resolved_at'] else None,
+                    'resolved_by': row_dict['resolved_by']
+                })
+            
+            return jsonify(history_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get alert history: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    # Notification Status
+    @app.route("/api/alerts/notifications/status", endpoint="notification_status")
+    @log_requests
+    @handle_errors
+    def get_notification_status():
+        """Get notification service status"""
+        try:
+            from src.services.notification_service import get_notification_service
+            
+            notification_service = get_notification_service()
+            status = notification_service.get_channel_status()
+            
+            return jsonify(status)
+            
+        except Exception as e:
+            logger.error(f"Failed to get notification status: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/alerts/notifications/test", methods=["POST"], endpoint="test_notifications")
+    @log_requests
+    @handle_errors
+    def test_notifications():
+        """Send test notification to verify configuration"""
+        try:
+            from src.services.notification_service import get_notification_service, NotificationMessage
+            import asyncio
+            
+            data = request.get_json() or {}
+            channels = data.get('channels', ['email'])
+            
+            message = NotificationMessage(
+                title="PondMonitor Test Alert",
+                message="This is a test notification from the PondMonitor alerting system. If you receive this message, your notification configuration is working correctly.",
+                severity="info",
+                timestamp=datetime.now(timezone.utc),
+                include_chart=False
+            )
+            
+            notification_service = get_notification_service()
+            results = asyncio.run(notification_service.send_alert(message, channels))
+            
+            # Format results
+            results_data = []
+            for result in results:
+                results_data.append({
+                    'channel': result.channel,
+                    'recipient': result.recipient,
+                    'success': result.success,
+                    'error': result.error,
+                    'sent_at': result.sent_at.isoformat() if result.sent_at else None
+                })
+            
+            logger.info(f"Test notifications sent: {len(results_data)} attempts")
+            return jsonify({'results': results_data})
+            
+        except Exception as e:
+            logger.error(f"Failed to send test notifications: {e}")
+            return jsonify({'error': str(e)}), 500
+
 
 # Application factory
 app = create_app()

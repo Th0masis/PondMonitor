@@ -150,20 +150,42 @@ class LoggingConfig:
 
 @dataclass
 class AlertingConfig:
-    """Alerting system configuration (for future weeks)"""
+    """Alerting system configuration"""
     enabled: bool = False
+    
+    # Email notifications
     email_enabled: bool = False
-    sms_enabled: bool = False
     smtp_server: str = ""
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
+    smtp_use_tls: bool = True
+    email_from: str = "PondMonitor <noreply@pondmonitor.local>"
+    email_to: List[str] = field(default_factory=list)
     
-    # Alert thresholds
+    # Telegram notifications
+    telegram_enabled: bool = False
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+    
+    # Discord notifications
+    discord_enabled: bool = False
+    discord_webhook_url: str = ""
+    
+    # Browser notifications (WebSocket/Server-Sent Events)
+    browser_notifications_enabled: bool = True
+    
+    # Chart generation for notifications
+    include_charts: bool = True
+    chart_time_range_hours: int = 24
+    
+    # Alert thresholds (default rules)
     low_battery_threshold: float = 3.3
     high_temperature_threshold: float = 40.0
     low_temperature_threshold: float = -10.0
     signal_strength_threshold: int = -100
+    critical_water_level: float = 180.0
+    low_water_level: float = 50.0
 
 
 class PondMonitorConfig:
@@ -305,18 +327,48 @@ class PondMonitorConfig:
     
     def _load_alerting_config(self) -> AlertingConfig:
         """Load alerting configuration from environment"""
+        # Parse email recipients from comma-separated string
+        email_recipients = []
+        email_to_str = self._get_env_var("ALERT_EMAIL_TO", "")
+        if email_to_str:
+            email_recipients = [email.strip() for email in email_to_str.split(",") if email.strip()]
+        
         return AlertingConfig(
             enabled=self._get_env_var("ALERTING_ENABLED", False, bool),
+            
+            # Email configuration
             email_enabled=self._get_env_var("EMAIL_ALERTS_ENABLED", False, bool),
-            sms_enabled=self._get_env_var("SMS_ALERTS_ENABLED", False, bool),
             smtp_server=self._get_env_var("SMTP_SERVER", ""),
             smtp_port=self._get_env_var("SMTP_PORT", 587, int),
             smtp_username=self._get_env_var("SMTP_USERNAME", ""),
             smtp_password=self._get_env_var("SMTP_PASSWORD", ""),
+            smtp_use_tls=self._get_env_var("SMTP_USE_TLS", True, bool),
+            email_from=self._get_env_var("ALERT_EMAIL_FROM", "PondMonitor <noreply@pondmonitor.local>"),
+            email_to=email_recipients,
+            
+            # Telegram configuration
+            telegram_enabled=self._get_env_var("TELEGRAM_ALERTS_ENABLED", False, bool),
+            telegram_bot_token=self._get_env_var("TELEGRAM_BOT_TOKEN", ""),
+            telegram_chat_id=self._get_env_var("TELEGRAM_CHAT_ID", ""),
+            
+            # Discord configuration
+            discord_enabled=self._get_env_var("DISCORD_ALERTS_ENABLED", False, bool),
+            discord_webhook_url=self._get_env_var("DISCORD_WEBHOOK_URL", ""),
+            
+            # Browser notifications
+            browser_notifications_enabled=self._get_env_var("BROWSER_NOTIFICATIONS_ENABLED", True, bool),
+            
+            # Chart configuration
+            include_charts=self._get_env_var("ALERT_INCLUDE_CHARTS", True, bool),
+            chart_time_range_hours=self._get_env_var("ALERT_CHART_HOURS", 24, int),
+            
+            # Alert thresholds
             low_battery_threshold=self._get_env_var("LOW_BATTERY_THRESHOLD", 3.3, float),
             high_temperature_threshold=self._get_env_var("HIGH_TEMP_THRESHOLD", 40.0, float),
             low_temperature_threshold=self._get_env_var("LOW_TEMP_THRESHOLD", -10.0, float),
-            signal_strength_threshold=self._get_env_var("SIGNAL_THRESHOLD", -100, int)
+            signal_strength_threshold=self._get_env_var("SIGNAL_THRESHOLD", -100, int),
+            critical_water_level=self._get_env_var("CRITICAL_WATER_LEVEL", 180.0, float),
+            low_water_level=self._get_env_var("LOW_WATER_LEVEL", 50.0, float)
         )
     
     def validate(self) -> None:
@@ -381,7 +433,10 @@ class PondMonitorConfig:
             "alerting": {
                 "enabled": self.alerting.enabled,
                 "email_enabled": self.alerting.email_enabled,
-                "sms_enabled": self.alerting.sms_enabled
+                "telegram_enabled": self.alerting.telegram_enabled,
+                "discord_enabled": self.alerting.discord_enabled,
+                "browser_notifications_enabled": self.alerting.browser_notifications_enabled,
+                "include_charts": self.alerting.include_charts
             }
         }
 

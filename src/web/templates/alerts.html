@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+{% set active_page = "alerts" %}
+{% set page_title = "Alert Management" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="alerts-container">
+    <!-- Header Section -->
+    <div class="alerts-header">
+        <h1>🚨 Alert Management</h1>
+        <p class="subtitle">Configure alert rules, monitor active alerts, and manage notification settings</p>
+        
+        <!-- Quick Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon critical">⚠️</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="activeAlertsCount">--</div>
+                    <div class="stat-label">Active Alerts</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon success">📋</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="rulesCount">--</div>
+                    <div class="stat-label">Alert Rules</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon info">📤</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="notificationsCount">--</div>
+                    <div class="stat-label">Notifications (24h)</div>
+                </div>
+            </div>
+            
+            <div class="stat-card notification-status" id="notificationStatus">
+                <div class="stat-icon" id="notificationStatusIcon">🔔</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="channelsOnlineCount">--</div>
+                    <div class="stat-label">Channels Online</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+        <button class="tab-button active" data-tab="active-alerts">🚨 Active Alerts</button>
+        <button class="tab-button" data-tab="alert-rules">📋 Alert Rules</button>
+        <button class="tab-button" data-tab="history">📊 Alert History</button>
+        <button class="tab-button" data-tab="notifications">🔔 Notifications</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Active Alerts Tab -->
+        <div id="active-alerts" class="tab-panel active">
+            <div class="panel-header">
+                <h2>Active Alerts</h2>
+                <div class="panel-actions">
+                    <button id="refreshActiveAlerts" class="btn btn-secondary">
+                        <span class="icon">🔄</span> Refresh
+                    </button>
+                    <button id="acknowledgeAllAlerts" class="btn btn-warning">
+                        <span class="icon">✅</span> Acknowledge All
+                    </button>
+                </div>
+            </div>
+            
+            <div id="activeAlertsContainer">
+                <div class="loading" id="activeAlertsLoading">
+                    <div class="spinner"></div>
+                    <span>Loading active alerts...</span>
+                </div>
+            </div>
+            
+            <div id="noActiveAlerts" class="empty-state" style="display: none;">
+                <div class="empty-icon">✅</div>
+                <h3>No Active Alerts</h3>
+                <p>All systems are operating normally. No alerts require attention at this time.</p>
+            </div>
+        </div>
+
+        <!-- Alert Rules Tab -->
+        <div id="alert-rules" class="tab-panel">
+            <div class="panel-header">
+                <h2>Alert Rules</h2>
+                <div class="panel-actions">
+                    <button id="refreshAlertRules" class="btn btn-secondary">
+                        <span class="icon">🔄</span> Refresh
+                    </button>
+                    <button id="createNewRule" class="btn btn-primary">
+                        <span class="icon">➕</span> New Rule
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Rule Filters -->
+            <div class="filters-row">
+                <select id="ruleTypeFilter" class="filter-select">
+                    <option value="">All Rule Types</option>
+                    <option value="threshold">Threshold</option>
+                    <option value="range">Range</option>
+                    <option value="rate_of_change">Rate of Change</option>
+                    <option value="missing_data">Missing Data</option>
+                </select>
+                
+                <select id="metricTypeFilter" class="filter-select">
+                    <option value="">All Metrics</option>
+                    <option value="water_level">Water Level</option>
+                    <option value="temperature">Temperature</option>
+                    <option value="battery_voltage">Battery Voltage</option>
+                    <option value="signal_strength">Signal Strength</option>
+                    <option value="outflow">Outflow</option>
+                </select>
+                
+                <select id="severityFilter" class="filter-select">
+                    <option value="">All Severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                </select>
+                
+                <label class="filter-checkbox">
+                    <input type="checkbox" id="enabledOnlyFilter" checked>
+                    <span>Enabled only</span>
+                </label>
+            </div>
+            
+            <div id="alertRulesContainer">
+                <div class="loading" id="alertRulesLoading">
+                    <div class="spinner"></div>
+                    <span>Loading alert rules...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert History Tab -->
+        <div id="history" class="tab-panel">
+            <div class="panel-header">
+                <h2>Alert History</h2>
+                <div class="panel-actions">
+                    <select id="historyTimeRange" class="filter-select">
+                        <option value="24">Last 24 hours</option>
+                        <option value="72">Last 3 days</option>
+                        <option value="168">Last week</option>
+                        <option value="720">Last month</option>
+                    </select>
+                    <button id="refreshHistory" class="btn btn-secondary">
+                        <span class="icon">🔄</span> Refresh
+                    </button>
+                    <button id="exportHistory" class="btn btn-secondary">
+                        <span class="icon">📥</span> Export
+                    </button>
+                </div>
+            </div>
+            
+            <!-- History Filters -->
+            <div class="filters-row">
+                <select id="historySeverityFilter" class="filter-select">
+                    <option value="">All Severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                </select>
+                
+                <select id="historyStatusFilter" class="filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="acknowledged">Acknowledged</option>
+                    <option value="resolved">Resolved</option>
+                </select>
+                
+                <input type="text" id="historySearchInput" placeholder="Search messages..." class="filter-input">
+            </div>
+            
+            <div id="alertHistoryContainer">
+                <div class="loading" id="alertHistoryLoading">
+                    <div class="spinner"></div>
+                    <span>Loading alert history...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Tab -->
+        <div id="notifications" class="tab-panel">
+            <div class="panel-header">
+                <h2>Notification Settings</h2>
+                <div class="panel-actions">
+                    <button id="testNotifications" class="btn btn-secondary">
+                        <span class="icon">🧪</span> Test Notifications
+                    </button>
+                    <button id="refreshNotificationStatus" class="btn btn-secondary">
+                        <span class="icon">🔄</span> Refresh Status
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Notification Channels Status -->
+            <div class="notification-channels">
+                <h3>📡 Notification Channels</h3>
+                <div id="notificationChannelsContainer">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <span>Loading notification status...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Test Notifications -->
+            <div class="test-notifications">
+                <h3>🧪 Test Notifications</h3>
+                <div class="test-form">
+                    <div class="form-group">
+                        <label>Select Channels to Test:</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" value="email" checked> 📧 Email</label>
+                            <label><input type="checkbox" value="telegram"> 💬 Telegram</label>
+                            <label><input type="checkbox" value="discord"> 🎮 Discord</label>
+                            <label><input type="checkbox" value="browser"> 🌐 Browser</label>
+                        </div>
+                    </div>
+                    <button id="sendTestNotification" class="btn btn-primary">
+                        <span class="icon">📤</span> Send Test Notification
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Notification History -->
+            <div class="notification-history">
+                <h3>📋 Recent Notifications</h3>
+                <div id="notificationHistoryContainer">
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <p>Notification history will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Rule Modal -->
+<div id="ruleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="ruleModalTitle">Create Alert Rule</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        
+        <form id="ruleForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ruleName">Rule Name*</label>
+                    <input type="text" id="ruleName" name="name" required 
+                           placeholder="e.g., High Water Level Alert">
+                </div>
+                
+                <div class="form-group">
+                    <label for="ruleSeverity">Severity*</label>
+                    <select id="ruleSeverity" name="severity" required>
+                        <option value="">Select Severity</option>
+                        <option value="info">ℹ️ Info</option>
+                        <option value="warning">⚠️ Warning</option>
+                        <option value="critical">🚨 Critical</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="ruleDescription">Description</label>
+                <textarea id="ruleDescription" name="description" rows="2"
+                         placeholder="Describe when this rule should trigger"></textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="ruleMetricType">Metric Type*</label>
+                    <select id="ruleMetricType" name="metric_type" required>
+                        <option value="">Select Metric</option>
+                        <option value="water_level">💧 Water Level</option>
+                        <option value="temperature">🌡️ Temperature</option>
+                        <option value="battery_voltage">🔋 Battery Voltage</option>
+                        <option value="signal_strength">📶 Signal Strength</option>
+                        <option value="outflow">🌊 Outflow Rate</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ruleType">Rule Type*</label>
+                    <select id="ruleType" name="rule_type" required>
+                        <option value="">Select Type</option>
+                        <option value="threshold">📊 Threshold</option>
+                        <option value="range">📏 Range</option>
+                        <option value="rate_of_change">📈 Rate of Change</option>
+                        <option value="missing_data">❌ Missing Data</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="stationId">Station ID (optional)</label>
+                <input type="text" id="stationId" name="station_id" 
+                       placeholder="Leave blank for all stations">
+            </div>
+            
+            <!-- Condition Configuration -->
+            <div id="conditionsContainer">
+                <h4>📋 Rule Conditions</h4>
+                <div id="conditionFields">
+                    <!-- Dynamic condition fields will be inserted here -->
+                </div>
+            </div>
+            
+            <!-- Notification Settings -->
+            <div class="notification-settings">
+                <h4>🔔 Notification Settings</h4>
+                
+                <div class="form-group">
+                    <label>Notification Channels</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="channels" value="email" checked> 📧 Email</label>
+                        <label><input type="checkbox" name="channels" value="telegram"> 💬 Telegram</label>
+                        <label><input type="checkbox" name="channels" value="discord"> 🎮 Discord</label>
+                        <label><input type="checkbox" name="channels" value="browser"> 🌐 Browser</label>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cooldownMinutes">Cooldown (minutes)</label>
+                        <input type="number" id="cooldownMinutes" name="cooldown_minutes" 
+                               value="60" min="1" max="1440">
+                        <small>Minimum time between repeated alerts</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="maxAlertsPerHour">Max Alerts/Hour</label>
+                        <input type="number" id="maxAlertsPerHour" name="max_alerts_per_hour" 
+                               value="5" min="1" max="60">
+                        <small>Maximum alerts per hour for this rule</small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="ruleEnabled" name="enabled" checked>
+                        <span>Enable this rule immediately</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="cancelRuleEdit">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="icon">💾</span> Save Rule
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Alert Details Modal -->
+<div id="alertModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="alertModalTitle">Alert Details</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        
+        <div id="alertModalContent">
+            <!-- Alert details will be populated here -->
+        </div>
+        
+        <div class="modal-actions" id="alertModalActions">
+            <button type="button" class="btn btn-secondary modal-close">Close</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
+{% endblock %}
