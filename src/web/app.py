@@ -566,7 +566,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/advanced-export/estimate", methods=["POST"], endpoint="advanced_export_estimate")
     @log_requests
     @handle_errors
-    @validate_json
+    @validate_json(required_fields=['start_time', 'end_time'], optional_fields=['data_types', 'format', 'aggregation'])
     def advanced_export_estimate():
         """Estimate advanced export size and processing time"""
         
@@ -596,7 +596,7 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/advanced-export", methods=["POST"], endpoint="advanced_export")
     @log_requests
     @handle_errors
-    @validate_json
+    @validate_json(required_fields=['start_time', 'end_time'], optional_fields=['data_types', 'format', 'aggregation'])
     def advanced_export():
         """Perform advanced export with enhanced features"""
         

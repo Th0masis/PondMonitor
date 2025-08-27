@@ -13,20 +13,18 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
+# Apply patches before importing anything that might trigger database initialization
+import unittest.mock
+unittest.mock.patch('src.database.init_database', return_value=Mock()).start()
+unittest.mock.patch('src.web.app.AdvancedExportService', return_value=Mock()).start()
 
 class TestExportButtonFunctionality:
     """Test export page button functionality and API interactions"""
     
-    @patch('src.web.app.init_database')
-    @patch('src.web.app.AdvancedExportService')
-    def test_export_page_structure(self, mock_export_service, mock_db_init):
+    def test_export_page_structure(self):
         """Test that export page contains required elements"""
+        # Import after mocks are in place
         from src.web.app import create_app
-        
-        # Mock database and services
-        mock_db = Mock()
-        mock_db_init.return_value = mock_db
-        mock_export_service.return_value = Mock()
         
         app = create_app()
         app.config['TESTING'] = True
@@ -52,101 +50,115 @@ class TestExportButtonFunctionality:
 class TestAdvancedExportAPIEndpoints:
     """Test the advanced export API endpoints functionality"""
     
-    @patch('src.web.app.init_database')
-    @patch('src.web.app.AdvancedExportService')
-    def test_advanced_export_config_endpoint(self, mock_export_service, mock_db_init):
+    def test_advanced_export_config_endpoint(self):
         """Test /api/advanced-export/config endpoint"""
         from src.web.app import create_app
         
-        # Mock services
-        mock_db = Mock()
-        mock_db_init.return_value = mock_db
-        
-        mock_service = Mock()
-        mock_service.get_filter_ranges.return_value = {
-            "temp_range": {"min": -10, "max": 50, "absolute_min": -20, "absolute_max": 60},
-            "battery_range": {"min": 0, "max": 100, "absolute_min": 0, "absolute_max": 100},
-            "signal_range": {"min": -120, "max": -30, "absolute_min": -150, "absolute_max": 0}
-        }
-        mock_export_service.return_value = mock_service
-        
-        app = create_app()
-        app.config['TESTING'] = True
-        
-        with app.test_client() as client:
-            response = client.get('/api/advanced-export/config')
-            assert response.status_code == 200
+        with patch('src.web.app.AdvancedExportService') as mock_service_class:
+            mock_service = Mock()
+            mock_service.get_filter_ranges.return_value = {
+                "temp_range": {"min": -10, "max": 50, "absolute_min": -20, "absolute_max": 60},
+                "battery_range": {"min": 0, "max": 100, "absolute_min": 0, "absolute_max": 100},
+                "signal_range": {"min": -120, "max": -30, "absolute_min": -150, "absolute_max": 0}
+            }
+            mock_service_class.return_value = mock_service
             
-            data = json.loads(response.data)
+            app = create_app()
+            app.config['TESTING'] = True
             
-            # Verify required configuration sections
-            assert 'data_types' in data
-            assert 'export_formats' in data
-            assert 'aggregation_options' in data
-            assert 'filter_ranges' in data
-            
-            # Verify data types
-            data_types = data['data_types']
-            assert len(data_types) == 3
-            assert any(dt['id'] == 'pond_data' for dt in data_types)
-            assert any(dt['id'] == 'station_data' for dt in data_types)
-            assert any(dt['id'] == 'weather_data' for dt in data_types)
+            with app.test_client() as client:
+                response = client.get('/api/advanced-export/config')
+                assert response.status_code == 200
+                
+                data = json.loads(response.data)
+                
+                # Verify required configuration sections
+                assert 'data_types' in data
+                assert 'export_formats' in data
+                assert 'aggregation_options' in data
+                assert 'filter_ranges' in data
+                
+                # Verify data types
+                data_types = data['data_types']
+                assert len(data_types) == 3
+                assert any(dt['id'] == 'pond_data' for dt in data_types)
+                assert any(dt['id'] == 'station_data' for dt in data_types)
+                assert any(dt['id'] == 'weather_data' for dt in data_types)
     
-    def test_advanced_export_estimate_endpoint(self, client, app):
+    def test_advanced_export_estimate_endpoint(self):
         """Test /api/advanced-export/estimate endpoint"""
-        # Mock the estimate_export method
-        app.mock_export_service.estimate_export.return_value = {
-            "records_count": 2500,
-            "file_size": 524288,  # 512KB
-            "estimated_time": 15,  # 15 seconds
-            "data_types_count": 2
-        }
+        from src.web.app import create_app
         
-        # Prepare test request data
-        test_config = {
-            "start_time": "2025-08-20T00:00:00Z",
-            "end_time": "2025-08-26T23:59:59Z",
-            "data_types": ["pond_data", "station_data"],
-            "format": "excel",
-            "aggregation": "hourly"
-        }
-        
-        response = client.post('/api/advanced-export/estimate',
-                              data=json.dumps(test_config),
-                              content_type='application/json')
-        
-        assert response.status_code == 200
-        
-        data = json.loads(response.data)
-        assert data['records_count'] == 2500
-        assert data['file_size'] == 524288
-        assert data['estimated_time'] == 15
-        assert data['data_types_count'] == 2
+        # Mock the app's advanced export service to return expected values
+        with patch('src.web.app.AdvancedExportService') as mock_service_class:
+            mock_service = Mock()
+            mock_service.estimate_export.return_value = {
+                "records_count": 2500,
+                "file_size": 524288,  # 512KB
+                "estimated_time": 15,  # 15 seconds
+                "data_types_count": 2
+            }
+            mock_service_class.return_value = mock_service
+            
+            app = create_app()
+            app.config['TESTING'] = True
+            
+            # Prepare test request data
+            test_config = {
+                "start_time": "2025-08-20T00:00:00Z",
+                "end_time": "2025-08-26T23:59:59Z",
+                "data_types": ["pond_data", "station_data"],
+                "format": "excel",
+                "aggregation": "hourly"
+            }
+            
+            with app.test_client() as client:
+                response = client.post('/api/advanced-export/estimate',
+                                      data=json.dumps(test_config),
+                                      content_type='application/json')
+                
+                assert response.status_code == 200
+                
+                data = json.loads(response.data)
+                assert data['records_count'] == 2500
+                assert data['file_size'] == 524288
+                assert data['estimated_time'] == 15
+                assert data['data_types_count'] == 2
     
-    def test_advanced_export_endpoint(self, client, app):
+    def test_advanced_export_endpoint(self):
         """Test /api/advanced-export endpoint for actual export"""
-        # Mock the export_advanced method to return CSV data
+        from src.web.app import create_app
+        
+        # Mock the app's advanced export service to return CSV data
         test_csv_data = "Timestamp,Level_cm,Outflow_lps\n2025-08-26T10:00:00Z,150.5,5.2\n"
-        app.mock_export_service.export_advanced.return_value = test_csv_data
         
-        # Prepare test request data
-        test_config = {
-            "start_time": "2025-08-26T00:00:00Z",
-            "end_time": "2025-08-26T23:59:59Z",
-            "data_types": ["pond_data"],
-            "format": "csv",
-            "aggregation": "raw"
-        }
-        
-        response = client.post('/api/advanced-export',
-                              data=json.dumps(test_config),
-                              content_type='application/json')
-        
-        assert response.status_code == 200
-        assert response.mimetype == 'text/csv'
-        assert 'Content-Disposition' in response.headers
-        assert 'attachment' in response.headers['Content-Disposition']
-        assert response.data.decode('utf-8') == test_csv_data
+        with patch('src.web.app.AdvancedExportService') as mock_service_class:
+            mock_service = Mock()
+            mock_service.export_advanced.return_value = test_csv_data
+            mock_service_class.return_value = mock_service
+            
+            app = create_app()
+            app.config['TESTING'] = True
+            
+            # Prepare test request data
+            test_config = {
+                "start_time": "2025-08-26T00:00:00Z",
+                "end_time": "2025-08-26T23:59:59Z",
+                "data_types": ["pond_data"],
+                "format": "csv",
+                "aggregation": "raw"
+            }
+            
+            with app.test_client() as client:
+                response = client.post('/api/advanced-export',
+                                      data=json.dumps(test_config),
+                                      content_type='application/json')
+                
+                assert response.status_code == 200
+                assert response.mimetype == 'text/csv'
+                assert 'Content-Disposition' in response.headers
+                assert 'attachment' in response.headers['Content-Disposition']
+                assert response.data.decode('utf-8') == test_csv_data
 
 
 class TestExportButtonDemoMode:
@@ -227,7 +239,9 @@ class TestExportButtonErrorHandling:
     @pytest.fixture
     def app(self):
         """Create Flask test app with failing services"""
-        with patch('src.web.app.init_database') as mock_db_init:
+        from src.web.app import create_app
+        
+        with patch('src.database.init_database') as mock_db_init:
             # Mock database initialization failure
             mock_db_init.side_effect = Exception("Database connection failed")
             
