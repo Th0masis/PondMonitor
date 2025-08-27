@@ -280,8 +280,15 @@ class ScheduledJobs:
                 
                 if failed_channels:
                     # Retry failed notifications
-                    await self._retry_alert_notifications(row_dict, failed_channels)
-                    retry_count += 1
+                    try:
+                        import asyncio
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(self._retry_alert_notifications(row_dict, failed_channels))
+                        loop.close()
+                        retry_count += 1
+                    except Exception as e:
+                        logger.error(f"Failed to retry notifications: {e}")
             
             duration = (datetime.now() - start_time).total_seconds()
             self._update_job_stats(job_id, True, duration)
