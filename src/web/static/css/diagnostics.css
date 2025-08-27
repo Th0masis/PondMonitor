@@ -1,0 +1,24 @@
+/* PondMonitor - Diagnostics Page Specific Styles */
+
+/* Diagnostics mobile responsiveness */
+@media (max-width: 768px) {
+  .chart-container {
+    min-width: unset;
+  }
+  
+  #statusCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-body {
+    padding: 1rem;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}

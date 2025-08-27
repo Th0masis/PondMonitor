@@ -1,0 +1,37 @@
+/* PondMonitor - Weather Page Specific Styles */
+
+/* Custom scrollbar for forecast cards on mobile */
+#forecastCards {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+#forecastCards::-webkit-scrollbar {
+  height: 6px;
+}
+
+#forecastCards::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#forecastCards::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 3px;
+}
+
+#forecastCards::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  #forecastCards {
+    overflow-x: auto;
+    grid-template-columns: repeat(7, minmax(140px, 1fr));
+    scroll-snap-type: x mandatory;
+  }
+  
+  #forecastCards > * {
+    scroll-snap-align: start;
+  }
+}

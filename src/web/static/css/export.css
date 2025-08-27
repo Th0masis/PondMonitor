@@ -1,0 +1,308 @@
+/* PondMonitor - Export Page Styles */
+
+/* Form Sections */
+.form-section {
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.form-section:last-child {
+  border-bottom: none;
+}
+
+.form-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.form-section-title::before {
+  content: '';
+  width: 4px;
+  height: 1.25rem;
+  background-color: var(--color-blue);
+  margin-right: 0.75rem;
+  border-radius: 2px;
+}
+
+/* Form Controls */
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-input {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input:invalid {
+  border-color: var(--color-red);
+}
+
+/* Selection Cards */
+.selection-card {
+  padding: 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.selection-card:hover {
+  border-color: var(--color-blue);
+  background-color: var(--bg-secondary);
+}
+
+.selection-card.selected {
+  border-color: var(--color-blue);
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.selection-card.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  background-color: var(--color-blue);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.selection-card-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.selection-card-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Filter Groups */
+.filter-group {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+}
+
+.filter-group.enabled {
+  border-color: var(--color-blue);
+  background-color: rgba(59, 130, 246, 0.03);
+}
+
+/* Range Sliders */
+.range-slider {
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 3px;
+  position: relative;
+  margin: 1rem 0;
+}
+
+.range-slider::before {
+  content: '';
+  position: absolute;
+  height: 100%;
+  background: var(--color-blue);
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+/* Quick Range Buttons */
+.quick-range-buttons .btn {
+  font-size: 0.8125rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.quick-range-buttons .btn.active {
+  background-color: var(--color-blue);
+  border-color: var(--color-blue);
+  color: white;
+}
+
+/* Progress Bar */
+.progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background-color: var(--bg-tertiary);
+  border-radius: 0.25rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar #progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-blue), var(--color-green));
+  border-radius: 0.25rem;
+  transition: width 0.3s ease;
+}
+
+/* Export Estimate Styling */
+#exportEstimate {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.estimate-item {
+  text-align: center;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+}
+
+.estimate-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-blue);
+  margin-bottom: 0.25rem;
+}
+
+.estimate-label {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Export Preview */
+.preview-stat {
+  text-align: center;
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.preview-stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.preview-stat-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.preview-stat-change {
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.preview-stat-change.positive {
+  color: var(--color-green);
+}
+
+.preview-stat-change.negative {
+  color: var(--color-red);
+}
+
+/* Loading States */
+.preview-loading {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .form-section {
+    padding: 1rem 0;
+  }
+  
+  .quick-range-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .selection-card {
+    padding: 0.75rem;
+  }
+  
+  .filter-group {
+    padding: 0.75rem;
+  }
+  
+  #exportEstimate {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-range-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  #exportEstimate {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .selection-card {
+  border-color: #374151;
+}
+
+[data-theme="dark"] .selection-card:hover {
+  background-color: #1f2937;
+}
+
+[data-theme="dark"] .filter-group {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+[data-theme="dark"] .estimate-item,
+[data-theme="dark"] .preview-stat {
+  background-color: #1f2937;
+  border-color: #374151;
+}

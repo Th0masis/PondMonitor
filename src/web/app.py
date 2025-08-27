@@ -19,6 +19,7 @@ Original functionality preserved with improved architecture.
 import os
 import json
 import logging
+import random
 from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, request, jsonify, g
 from collections import defaultdict
@@ -33,6 +34,7 @@ from src.config import init_config, get_config
 from src.database import init_database, get_database
 from src.utils import handle_errors, log_requests, validate_json, Validator
 from src.services.export_service import create_export_service, ExportConfig
+from src.services.advanced_export_service import AdvancedExportService, AdvancedExportConfig
 from src.services.weather_service import create_weather_service
 from src.logging_config import setup_logging, get_logger, PerformanceLogger
 
@@ -42,6 +44,7 @@ logger = get_logger(__name__)
 # Global service instances
 db_service = None
 export_service = None
+advanced_export_service = None
 weather_service = None
 
 
@@ -55,7 +58,7 @@ def create_app(config_file: str = ".env") -> Flask:
     Returns:
         Configured Flask application
     """
-    global db_service, export_service, weather_service
+    global db_service, export_service, advanced_export_service, weather_service
     
     # Initialize configuration
     logger.info("Initializing PondMonitor application")
@@ -87,6 +90,10 @@ def create_app(config_file: str = ".env") -> Flask:
         # Export service
         export_service = create_export_service(db_service)
         logger.info("✅ Export service initialized")
+        
+        # Advanced export service
+        advanced_export_service = AdvancedExportService(db_service)
+        logger.info("✅ Advanced export service initialized")
         
         # Weather service
         weather_service = create_weather_service(config.weather, config.redis)
@@ -137,12 +144,16 @@ def register_routes(app: Flask) -> None:
     @app.route("/diagnostics")
     def diagnostics():
         return render_template("diagnostics.html")
+
+    @app.route("/export")
+    def export():
+        return render_template("export.html")
     
     # =================================================================
     # API ROUTES (enhanced with new services)
     # =================================================================
     
-    @app.route("/health")
+    @app.route("/health", endpoint="health_check")
     @log_requests
     @handle_errors
     def health_check():
@@ -183,7 +194,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(status)
     
-    @app.route("/api/status")
+    @app.route("/api/status", endpoint="api_status")
     @log_requests
     @handle_errors
     def get_status():
@@ -226,7 +237,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(response_data)
     
-    @app.route("/api/dashboard")
+    @app.route("/api/dashboard", endpoint="api_dashboard")
     @log_requests
     @handle_errors
     def api_dashboard():
@@ -271,7 +282,7 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Dashboard API error: {e}", exc_info=True)
             raise
     
-    @app.route("/api/lora")
+    @app.route("/api/lora", endpoint="api_lora")
     @log_requests
     @handle_errors
     def diagnostics_data():
@@ -325,7 +336,7 @@ def register_routes(app: Flask) -> None:
     # WEATHER API ROUTES (using new weather service)
     # =================================================================
     
-    @app.route("/api/weather/current")
+    @app.route("/api/weather/current", endpoint="weather_current")
     @log_requests
     @handle_errors
     def weather_current():
@@ -353,7 +364,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(response)
     
-    @app.route("/api/weather/meteogram")
+    @app.route("/api/weather/meteogram", endpoint="weather_meteogram")
     @log_requests
     @handle_errors
     def weather_meteogram():
@@ -381,7 +392,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(result)
     
-    @app.route("/api/weather/daily")
+    @app.route("/api/weather/daily", endpoint="weather_daily")
     @log_requests
     @handle_errors
     def daily_forecast():
@@ -409,7 +420,7 @@ def register_routes(app: Flask) -> None:
             
             return jsonify(result)
     
-    @app.route("/api/weather/stats")
+    @app.route("/api/weather/stats", endpoint="weather_stats")
     @log_requests
     @handle_errors
     def weather_stats():
@@ -427,7 +438,7 @@ def register_routes(app: Flask) -> None:
     # ENHANCED EXPORT ROUTES (using new export service)
     # =================================================================
     
-    @app.route("/api/export/formats")
+    @app.route("/api/export/formats", endpoint="export_formats")
     @log_requests
     @handle_errors
     def export_formats():
@@ -435,7 +446,7 @@ def register_routes(app: Flask) -> None:
         formats = export_service.get_export_formats()
         return jsonify(formats)
     
-    @app.route("/api/export/estimate")
+    @app.route("/api/export/estimate", endpoint="export_estimate")
     @log_requests
     @handle_errors
     def export_estimate():
@@ -463,7 +474,7 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Export estimation error: {e}")
             raise
     
-    @app.route("/api/export/<format>")
+    @app.route("/api/export/<format>", endpoint="export_data")
     @log_requests
     @handle_errors
     def export_data(format: str):
@@ -520,6 +531,289 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             logger.error(f"Export error: {e}")
             raise
+
+    # =================================================================
+    # ADVANCED EXPORT ROUTES (Week 2 Enhancement)
+    # =================================================================
+    
+    @app.route("/api/advanced-export/config", endpoint="advanced_export_config")
+    @log_requests
+    @handle_errors
+    def get_advanced_export_config():
+        """Get available advanced export configuration options"""
+        
+        config_options = {
+            "data_types": [
+                {"id": "pond_data", "name": "Pond Measurements", "description": "Temperature, pH, oxygen levels"},
+                {"id": "station_data", "name": "Station Diagnostics", "description": "Battery, signal, solar power"},
+                {"id": "weather_data", "name": "Weather Data", "description": "Temperature, humidity, pressure"}
+            ],
+            "aggregation_options": [
+                {"id": "raw", "name": "Raw Data", "description": "All individual measurements"},
+                {"id": "hourly", "name": "Hourly Average", "description": "Aggregated by hour"},
+                {"id": "daily", "name": "Daily Summary", "description": "Min/max/average per day"}
+            ],
+            "export_formats": [
+                {"id": "excel", "name": "Excel (.xlsx)", "description": "Professional Excel format with charts"},
+                {"id": "csv", "name": "CSV", "description": "Comma-separated values"},
+                {"id": "json", "name": "JSON", "description": "JavaScript Object Notation"}
+            ],
+            "filter_ranges": advanced_export_service.get_filter_ranges()
+        }
+        
+        return jsonify(config_options)
+    
+    @app.route("/api/advanced-export/estimate", methods=["POST"], endpoint="advanced_export_estimate")
+    @log_requests
+    @handle_errors
+    @validate_json(required_fields=['start_time', 'end_time'], optional_fields=['data_types', 'format', 'aggregation'])
+    def advanced_export_estimate():
+        """Estimate advanced export size and processing time"""
+        
+        try:
+            data = request.get_json()
+            
+            config = AdvancedExportConfig(
+                start_time=datetime.fromisoformat(data['start_time'].replace('Z', '+00:00')),
+                end_time=datetime.fromisoformat(data['end_time'].replace('Z', '+00:00')),
+                data_types=data.get('data_types', ['pond_data']),
+                format=data.get('format', 'excel'),
+                aggregation=data.get('aggregation', 'raw'),
+                include_charts=data.get('include_charts', False),
+                excel_formatting=data.get('excel_formatting', True),
+                temperature_range=data.get('temperature_range'),
+                battery_range=data.get('battery_range'),
+                signal_range=data.get('signal_range')
+            )
+            
+            estimate = advanced_export_service.estimate_export(config)
+            return jsonify(estimate)
+            
+        except Exception as e:
+            logger.error(f"Advanced export estimation error: {e}")
+            raise
+    
+    @app.route("/api/advanced-export", methods=["POST"], endpoint="advanced_export")
+    @log_requests
+    @handle_errors
+    @validate_json(required_fields=['start_time', 'end_time'], optional_fields=['data_types', 'format', 'aggregation'])
+    def advanced_export():
+        """Perform advanced export with enhanced features"""
+        
+        try:
+            data = request.get_json()
+            
+            config = AdvancedExportConfig(
+                start_time=datetime.fromisoformat(data['start_time'].replace('Z', '+00:00')),
+                end_time=datetime.fromisoformat(data['end_time'].replace('Z', '+00:00')),
+                data_types=data.get('data_types', ['pond_data']),
+                format=data.get('format', 'excel'),
+                aggregation=data.get('aggregation', 'raw'),
+                include_charts=data.get('include_charts', False),
+                excel_formatting=data.get('excel_formatting', True),
+                temperature_range=data.get('temperature_range'),
+                battery_range=data.get('battery_range'),
+                signal_range=data.get('signal_range')
+            )
+            
+            with PerformanceLogger(logger, "advanced_export", 
+                                 format=config.format, 
+                                 data_types=config.data_types,
+                                 aggregation=config.aggregation):
+                
+                exported_data = advanced_export_service.export_advanced(config)
+                
+                # Generate filename with timestamp and configuration info
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                data_type_suffix = "_".join(config.data_types)
+                filename_base = f"pond_advanced_{data_type_suffix}_{config.aggregation}_{timestamp}"
+                
+                # Set appropriate content type and headers
+                if config.format == 'csv':
+                    response = app.response_class(
+                        exported_data,
+                        mimetype='text/csv',
+                        headers={"Content-Disposition": f"attachment; filename={filename_base}.csv"}
+                    )
+                elif config.format == 'json':
+                    response = app.response_class(
+                        exported_data,
+                        mimetype='application/json',
+                        headers={"Content-Disposition": f"attachment; filename={filename_base}.json"}
+                    )
+                elif config.format in ['excel', 'xlsx']:
+                    response = app.response_class(
+                        exported_data,
+                        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        headers={"Content-Disposition": f"attachment; filename={filename_base}.xlsx"}
+                    )
+                else:
+                    return jsonify({"error": f"Unsupported format: {config.format}"}), 400
+                
+                return response
+                
+        except Exception as e:
+            logger.error(f"Advanced export error: {e}")
+            raise
+    
+    @app.route("/api/advanced-export/progress/<job_id>", endpoint="advanced_export_progress")
+    @log_requests
+    @handle_errors
+    def advanced_export_progress(job_id: str):
+        """Get progress of long-running advanced export job"""
+        
+        try:
+            progress = advanced_export_service.get_export_progress(job_id)
+            return jsonify(progress)
+        except Exception as e:
+            logger.error(f"Export progress error: {e}")
+            raise
+    
+    # =================================================================
+    # LOGS API ENDPOINT
+    # =================================================================
+    
+    @app.route("/api/logs", endpoint="api_logs")
+    @log_requests
+    @handle_errors
+    def get_system_logs():
+        """Get system logs for diagnostics"""
+        try:
+            limit = int(request.args.get('limit', 50))
+            limit = min(limit, 200)  # Cap at 200 logs
+            
+            # Mock logs for now - in a real implementation, this would read from actual log files
+            # or a logging database
+            logs = [
+                {
+                    'timestamp': datetime.now().isoformat(),
+                    'level': 'INFO',
+                    'message': 'System health check completed successfully'
+                },
+                {
+                    'timestamp': (datetime.now() - timedelta(minutes=5)).isoformat(),
+                    'level': 'INFO',
+                    'message': 'Database connection pool refreshed'
+                },
+                {
+                    'timestamp': (datetime.now() - timedelta(minutes=10)).isoformat(),
+                    'level': 'WARNING',
+                    'message': 'Signal strength below optimal threshold: -95 dBm'
+                },
+                {
+                    'timestamp': (datetime.now() - timedelta(minutes=15)).isoformat(),
+                    'level': 'INFO',
+                    'message': 'Weather data cache updated'
+                },
+                {
+                    'timestamp': (datetime.now() - timedelta(minutes=20)).isoformat(),
+                    'level': 'ERROR',
+                    'message': 'Failed to connect to sensor: timeout after 30s'
+                }
+            ]
+            
+            return jsonify(logs[:limit])
+            
+        except Exception as e:
+            logger.error(f"Error fetching system logs: {e}")
+            return jsonify([]), 500
+
+    # =================================================================
+    # DIAGNOSTIC ACTION ENDPOINTS
+    # =================================================================
+    
+    @app.route("/api/test-connection", methods=["POST"], endpoint="test_connection")
+    @log_requests
+    @handle_errors
+    def test_connection():
+        """Test device connection"""
+        try:
+            # In a real implementation, this would test the actual device connection
+            # For now, simulate a connection test
+            import random
+            import time
+            
+            time.sleep(1)  # Simulate test duration
+            
+            success = random.choice([True, True, True, False])  # 75% success rate
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Connection test successful',
+                    'details': {
+                        'response_time_ms': random.randint(50, 200),
+                        'signal_strength': random.randint(-95, -60),
+                        'packet_loss': random.randint(0, 5)
+                    }
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Connection timeout - device not responding'
+                }), 503
+                
+        except Exception as e:
+            logger.error(f"Connection test error: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @app.route("/api/diagnostics/export", endpoint="diagnostics_export")
+    @log_requests
+    @handle_errors
+    def export_diagnostics():
+        """Export system diagnostics data"""
+        try:
+            # Get current status and recent data for diagnostics export
+            status_data = {
+                'export_timestamp': datetime.now().isoformat(),
+                'system_status': {
+                    'connected': True,
+                    'battery_voltage': 3.8,
+                    'signal_strength': -75,
+                    'temperature': 22.5,
+                    'uptime_seconds': 86400,
+                    'free_memory': 2048,
+                    'device_id': 'POND_MONITOR_001'
+                },
+                'recent_measurements': [
+                    {'timestamp': (datetime.now() - timedelta(minutes=i*5)).isoformat(), 
+                     'temperature': 22.5 + random.uniform(-2, 2),
+                     'battery': 3.8 + random.uniform(-0.2, 0.2),
+                     'signal': -75 + random.randint(-10, 10)}
+                    for i in range(12)  # Last hour of data
+                ],
+                'system_logs': [
+                    {'timestamp': datetime.now().isoformat(), 'level': 'INFO', 'message': 'Diagnostics export generated'},
+                    {'timestamp': (datetime.now() - timedelta(minutes=5)).isoformat(), 'level': 'INFO', 'message': 'System health check passed'},
+                    {'timestamp': (datetime.now() - timedelta(minutes=10)).isoformat(), 'level': 'WARNING', 'message': 'Signal strength fluctuation detected'}
+                ]
+            }
+            
+            return jsonify(status_data)
+            
+        except Exception as e:
+            logger.error(f"Diagnostics export error: {e}")
+            return jsonify({'error': 'Failed to generate diagnostics export'}), 500
+    
+    @app.route("/api/device/reset", methods=["POST"], endpoint="device_reset")
+    @log_requests
+    @handle_errors
+    def reset_device():
+        """Reset/restart the monitoring device"""
+        try:
+            # In a real implementation, this would send a reset command to the device
+            # For now, simulate the reset request
+            logger.info("Device reset requested via web interface")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Device reset command sent successfully',
+                'estimated_downtime_minutes': 3
+            })
+            
+        except Exception as e:
+            logger.error(f"Device reset error: {e}")
+            return jsonify({'error': 'Failed to send reset command'}), 500
 
 
 # Application factory

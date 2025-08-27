@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% set active_page = 'export' %}
+{% block title %}Export dat - PondMonitor{% endblock %}
+{% block page_title %}Export dat{% endblock %}
+{% block page_subtitle %}Pokročilé možnosti exportu dat s filtrováním a analýzou{% endblock %}
+
+{% block page_css %}
+<link href="{{ url_for('static', filename='css/export.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<!-- Export Configuration Card -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <h3 class="chart-title">Konfigurace exportu</h3>
+    <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: var(--text-secondary);">
+      Vyberte data, formát a časové období pro export
+    </p>
+  </div>
+  <div class="card-body">
+    <form id="exportForm" style="display: grid; gap: 2rem;">
+      
+      <!-- Date Range Selection -->
+      <div class="form-section">
+        <h4 class="form-section-title">Časové období</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          <div class="form-group">
+            <label for="startDate" class="form-label">Od</label>
+            <input type="datetime-local" id="startDate" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label for="endDate" class="form-label">Do</label>
+            <input type="datetime-local" id="endDate" class="form-input" required>
+          </div>
+        </div>
+        
+        <!-- Quick Date Range Buttons -->
+        <div class="quick-range-buttons" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+          <button type="button" class="btn btn-outline" onclick="setDateRange('1d')">Posledních 24h</button>
+          <button type="button" class="btn btn-outline" onclick="setDateRange('3d')">Posledních 3 dny</button>
+          <button type="button" class="btn btn-outline" onclick="setDateRange('7d')">Posledních 7 dní</button>
+          <button type="button" class="btn btn-outline" onclick="setDateRange('30d')">Posledních 30 dní</button>
+        </div>
+      </div>
+
+      <!-- Data Type Selection -->
+      <div class="form-section">
+        <h4 class="form-section-title">Typ dat</h4>
+        <div id="dataTypeSelection" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+          <!-- Data types will be populated here -->
+        </div>
+      </div>
+
+      <!-- Export Format -->
+      <div class="form-section">
+        <h4 class="form-section-title">Formát exportu</h4>
+        <div id="formatSelection" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          <!-- Formats will be populated here -->
+        </div>
+      </div>
+
+      <!-- Aggregation Options -->
+      <div class="form-section">
+        <h4 class="form-section-title">Zpracování dat</h4>
+        <div id="aggregationSelection" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          <!-- Aggregation options will be populated here -->
+        </div>
+      </div>
+
+      <!-- Advanced Filters -->
+      <div class="form-section">
+        <h4 class="form-section-title">Pokročilé filtry</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+          
+          <!-- Temperature Range -->
+          <div class="filter-group">
+            <label class="form-label">
+              <input type="checkbox" id="enableTempFilter"> 
+              Filtrace podle teploty (°C)
+            </label>
+            <div id="tempRangeControls" style="display: none; margin-top: 0.5rem;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <input type="number" id="tempMin" class="form-input" placeholder="Min" step="0.1">
+                <input type="number" id="tempMax" class="form-input" placeholder="Max" step="0.1">
+              </div>
+              <div id="tempRangeSlider" style="margin-top: 1rem;"></div>
+            </div>
+          </div>
+
+          <!-- Battery Range -->
+          <div class="filter-group">
+            <label class="form-label">
+              <input type="checkbox" id="enableBatteryFilter"> 
+              Filtrace podle baterie (%)
+            </label>
+            <div id="batteryRangeControls" style="display: none; margin-top: 0.5rem;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <input type="number" id="batteryMin" class="form-input" placeholder="Min" min="0" max="100">
+                <input type="number" id="batteryMax" class="form-input" placeholder="Max" min="0" max="100">
+              </div>
+              <div id="batteryRangeSlider" style="margin-top: 1rem;"></div>
+            </div>
+          </div>
+
+          <!-- Signal Range -->
+          <div class="filter-group">
+            <label class="form-label">
+              <input type="checkbox" id="enableSignalFilter"> 
+              Filtrace podle signálu (dBm)
+            </label>
+            <div id="signalRangeControls" style="display: none; margin-top: 0.5rem;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <input type="number" id="signalMin" class="form-input" placeholder="Min" step="1">
+                <input type="number" id="signalMax" class="form-input" placeholder="Max" step="1">
+              </div>
+              <div id="signalRangeSlider" style="margin-top: 1rem;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Excel-specific Options -->
+      <div id="excelOptions" class="form-section" style="display: none;">
+        <h4 class="form-section-title">Excel možnosti</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <label class="form-label">
+            <input type="checkbox" id="includeCharts" checked> 
+            Zahrnout grafy a vizualizace
+          </label>
+          <label class="form-label">
+            <input type="checkbox" id="excelFormatting" checked> 
+            Pokročilé formátování (barvy, styly)
+          </label>
+          <label class="form-label">
+            <input type="checkbox" id="conditionalFormatting" checked> 
+            Podmíněné formátování dat
+          </label>
+        </div>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<!-- Export Preview Card -->
+<div class="card" style="margin-bottom: 2rem;">
+  <div class="card-header">
+    <h3 class="chart-title">Náhled exportu</h3>
+    <button id="refreshPreview" class="btn btn-outline" style="margin-left: auto;">
+      <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
+      </svg>
+      Aktualizovat
+    </button>
+  </div>
+  <div class="card-body">
+    <div id="exportPreview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+      <!-- Preview will be populated here -->
+      <div class="preview-loading" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <svg style="width: 3rem; height: 3rem; margin-bottom: 1rem; animation: spin 1s linear infinite;" fill="none" viewBox="0 0 24 24">
+          <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p>Připravuje se náhled...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export Actions -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="chart-title">Export</h3>
+  </div>
+  <div class="card-body">
+    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+      <button id="estimateExport" class="btn btn-outline">
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h2zm-1 0h4V5a1 1 0 011-1h2a1 1 0 011 1v1h4a1 1 0 011 1v1H3V7a1 1 0 011-1zM3 12v3a1 1 0 001 1h12a1 1 0 001-1v-3H3z" clip-rule="evenodd"></path>
+        </svg>
+        Odhadnout velikost
+      </button>
+      
+      <button id="startExport" class="btn btn-primary" disabled>
+        <svg style="width: 1rem; height: 1rem; margin-right: 0.5rem;" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+        </svg>
+        <span>Spustit export</span>
+      </button>
+      
+      <div id="exportProgress" style="display: none; flex: 1; min-width: 200px;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div class="progress-bar" style="flex: 1;">
+            <div id="progressFill" style="width: 0%; transition: width 0.3s ease;"></div>
+          </div>
+          <span id="progressText" style="font-size: 0.875rem; color: var(--text-secondary); min-width: 4rem;">0%</span>
+        </div>
+        <p id="progressStatus" style="font-size: 0.75rem; margin: 0.25rem 0 0 0; color: var(--text-secondary);">
+          Připravuje se...
+        </p>
+      </div>
+    </div>
+    
+    <!-- Export Estimate Results -->
+    <div id="exportEstimate" style="display: none; margin-top: 1.5rem; padding: 1rem; background-color: var(--bg-tertiary); border-radius: 8px;">
+      <!-- Estimate details will be shown here -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script src="{{ url_for('static', filename='js/export.js') }}"></script>
+{% endblock %}
