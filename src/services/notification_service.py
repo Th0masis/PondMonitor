@@ -20,6 +20,7 @@ import smtplib
 import asyncio
 import io
 import base64
+import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
