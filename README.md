@@ -6,6 +6,7 @@
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-green?logo=python)](https://python.org)
 [![License MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![Status Active](https://img.shields.io/badge/Status-Active-success)](https://github.com/Th0masis/PondMonitor)
+[![Changelog](https://img.shields.io/badge/📋-Changelog-blue)](CHANGELOG.md)
 
 > **PondMonitor** is a comprehensive IoT platform for environmental monitoring using LoRa wireless sensors, real-time web dashboards, weather integration, and time-series data analysis.
 
