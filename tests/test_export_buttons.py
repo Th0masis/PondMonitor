@@ -13,47 +13,23 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-# Setup comprehensive mocks to prevent database connection issues in CI
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_environment():
-    """Set up comprehensive mocks for reliable CI testing"""
-    patchers = []
-    
-    # Mock database service initialization at multiple levels
-    db_init_patcher = patch('src.database.init_database')
-    mock_db = db_init_patcher.start()
-    mock_db.return_value = Mock()
-    patchers.append(db_init_patcher)
-    
-    # Mock DatabaseService class directly
-    db_service_patcher = patch('src.database.DatabaseService')
-    mock_db_service = db_service_patcher.start()
-    mock_db_service.return_value = Mock()
-    patchers.append(db_service_patcher)
-    
-    # Mock the database service initialize method
-    db_initialize_patcher = patch('src.database.DatabaseService.initialize')
-    mock_initialize = db_initialize_patcher.start()
-    mock_initialize.return_value = None
-    patchers.append(db_initialize_patcher)
-    
-    # Mock connection pool creation
-    pool_patcher = patch('psycopg2.pool.SimpleConnectionPool')
-    mock_pool = pool_patcher.start()
-    mock_pool.return_value = Mock()
-    patchers.append(pool_patcher)
-    
-    # Mock AdvancedExportService
-    service_patcher = patch('src.web.app.AdvancedExportService')
-    mock_service_class = service_patcher.start()
-    mock_service_class.return_value = Mock()
-    patchers.append(service_patcher)
-    
-    yield  # Run tests
-    
-    # Clean up all patches
-    for patcher in patchers:
-        patcher.stop()
+# Apply global patches immediately after path setup to prevent database connections
+import unittest.mock
+
+# Mock database initialization globally for this test module
+_db_patcher = unittest.mock.patch('src.database.init_database')
+_db_mock = _db_patcher.start()
+_db_mock.return_value = Mock()
+
+# Mock connection pool creation globally for this test module
+_pool_patcher = unittest.mock.patch('psycopg2.pool.SimpleConnectionPool')
+_pool_mock = _pool_patcher.start()
+_pool_mock.return_value = Mock()
+
+def teardown_module():
+    """Clean up global patches after all tests in this module complete"""
+    _db_patcher.stop()
+    _pool_patcher.stop()
 
 class TestExportButtonFunctionality:
     """Test export page button functionality and API interactions"""
