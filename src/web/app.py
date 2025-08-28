@@ -99,6 +99,23 @@ def create_app(config_file: str = ".env") -> Flask:
         weather_service = create_weather_service(config.weather, config.redis)
         logger.info("✅ Weather service initialized")
         
+        # Alerting services
+        from src.services.alert_engine import init_alert_engine
+        from src.services.notification_service import init_notification_service
+        from src.services.scheduler_service import init_scheduler_service
+        
+        # Initialize notification service first (required by alert engine)
+        notification_service = init_notification_service(config.alerting)
+        logger.info("✅ Notification service initialized")
+        
+        # Initialize alert engine
+        alert_engine = init_alert_engine()
+        logger.info("✅ Alert engine initialized")
+        
+        # Initialize scheduler service
+        scheduler_service = init_scheduler_service()
+        logger.info("✅ Scheduler service initialized")
+        
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
         raise
