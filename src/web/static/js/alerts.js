@@ -78,6 +78,10 @@ class AlertManager {
             this.testBrowserNotification();
         });
         
+        document.getElementById('enableDesktopNotifications')?.addEventListener('click', () => {
+            this.enableDesktopNotifications();
+        });
+        
         
         // History filters
         document.getElementById('historyTimeRange')?.addEventListener('change', () => {
@@ -762,6 +766,32 @@ class AlertManager {
         } finally {
             button.innerHTML = originalText;
             button.disabled = false;
+        }
+    }
+    
+    async enableDesktopNotifications() {
+        if (window.BrowserNotificationService) {
+            try {
+                // Check current permission status
+                if (Notification.permission === 'denied') {
+                    this.showWarning('⚠️ Desktop notifikace jsou zakázány v prohlížeči. Podívejte se do záložky "Notifikace" pro instrukce jak je povolit.');
+                    // Switch to notifications tab to show instructions
+                    this.switchTab('notifications');
+                    return;
+                }
+                
+                const granted = await window.BrowserNotificationService.requestNotificationPermission(true);
+                if (granted) {
+                    this.showSuccess('✅ Desktop notifikace byly úspěšně povoleny!');
+                } else {
+                    this.showWarning('Desktop notifikace nebyly povoleny. Zkontrolujte záložku "Notifikace" pro další instrukce.');
+                    this.switchTab('notifications');
+                }
+            } catch (error) {
+                this.showError('Chyba při povolování desktop notifikací: ' + error.message);
+            }
+        } else {
+            this.showError('Browser Notification Service není dostupný');
         }
     }
     

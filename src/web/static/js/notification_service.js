@@ -21,8 +21,8 @@ class BrowserNotificationService {
     async init() {
         console.log('🔔 Inicializuji Browser Notification Service...');
         
-        // Request notification permission
-        await this.requestNotificationPermission();
+        // Request notification permission (only on first load, not if denied)
+        await this.requestNotificationPermission(false);
         
         // Start polling for notifications
         this.startPolling();
@@ -42,39 +42,187 @@ class BrowserNotificationService {
         });
     }
     
-    async requestNotificationPermission() {
+    async requestNotificationPermission(forceRequest = false) {
         if (!('Notification' in window)) {
             console.warn('🔕 Prohlížeč nepodporuje desktop notifikace');
             this.notificationPermission = 'not-supported';
+            this.showPermissionInfo('not-supported');
             return false;
         }
         
         if (Notification.permission === 'granted') {
             this.notificationPermission = 'granted';
             console.log('✅ Desktop notifikace jsou povoleny');
+            this.showPermissionInfo('granted');
             return true;
         } else if (Notification.permission === 'denied') {
             this.notificationPermission = 'denied';
-            console.warn('❌ Desktop notifikace jsou zakázány');
-            return false;
+            if (!forceRequest) {
+                console.warn('❌ Desktop notifikace jsou trvale zakázány v prohlížeči');
+                this.showPermissionInfo('permanently_denied');
+                return false;
+            } else {
+                // Still try to request even if denied (won't show dialog but gives proper feedback)
+                console.log('🔔 Pokus o vyžádání oprávnění i přes předchozí odmítnutí...');
+                this.showPermissionInfo('requesting');
+            }
         } else {
-            // Ask for permission
+            // Permission is 'default' - ask for permission
+            console.log('🔔 Vyžádání oprávnění pro desktop notifikace...');
+            this.showPermissionInfo('requesting');
+            
             try {
                 const permission = await Notification.requestPermission();
                 this.notificationPermission = permission;
                 if (permission === 'granted') {
                     console.log('✅ Uživatel povolil desktop notifikace');
+                    this.showPermissionInfo('granted');
+                    this.showWelcomeNotification();
                     return true;
                 } else {
                     console.warn('❌ Uživatel odmítl desktop notifikace');
+                    this.showPermissionInfo('denied');
                     return false;
                 }
             } catch (error) {
                 console.error('❌ Chyba při vyžádání oprávnění pro notifikace:', error);
                 this.notificationPermission = 'denied';
+                this.showPermissionInfo('error');
                 return false;
             }
         }
+    }
+    
+    showPermissionInfo(status) {
+        // Show permission status in the notifications tab if we're there
+        const notificationChannelsContainer = document.getElementById('notificationChannelsContainer');
+        if (!notificationChannelsContainer) return;
+        
+        const permissionStatusHtml = this.getPermissionStatusHtml(status);
+        
+        // Create or update permission status element
+        let permissionElement = document.getElementById('browserPermissionStatus');
+        if (!permissionElement) {
+            permissionElement = document.createElement('div');
+            permissionElement.id = 'browserPermissionStatus';
+            permissionElement.style.cssText = `
+                margin: 15px 0;
+                padding: 12px;
+                border-radius: 8px;
+                border: 1px solid var(--border-color);
+            `;
+            notificationChannelsContainer.appendChild(permissionElement);
+        }
+        
+        permissionElement.innerHTML = permissionStatusHtml;
+    }
+    
+    getPermissionStatusHtml(status) {
+        const statusConfigs = {
+            'granted': {
+                color: 'var(--color-green)',
+                bgColor: 'var(--color-green-light)',
+                icon: '✅',
+                title: 'Desktop notifikace povoleny',
+                description: 'Budete dostávat desktop notifikace při novych upozorněních.'
+            },
+            'denied': {
+                color: 'var(--color-red)',
+                bgColor: 'var(--color-red-light)',
+                icon: '❌',
+                title: 'Desktop notifikace zakázány',
+                description: 'Pro povolení klikněte na ikonu zámku v adresním řádku a povolte notifikace.',
+                action: '<button onclick="browserNotificationService.requestNotificationPermission(true)" class="btn btn-secondary" style="margin-top: 8px;">Zkusit znovu</button>'
+            },
+            'permanently_denied': {
+                color: 'var(--color-red)',
+                bgColor: 'var(--color-red-light)',
+                icon: '🔒',
+                title: 'Desktop notifikace jsou trvale zakázány',
+                description: 'Notifikace byly zakázány v prohlížeči. Pro povolení klikněte na ikonu zámku/štítu v adresním řádku (vlevo od URL) a nastavte "Notifikace" na "Povolit".',
+                action: `
+                    <div style="margin-top: 12px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px; font-size: 12px;">
+                        <strong>Krok za krokem:</strong><br>
+                        1. Klikněte na 🔒 nebo 🛡️ ikonu vlevo od adresy<br>
+                        2. Najděte "Notifikace" nebo "Notifications"<br>
+                        3. Změňte z "Blokovat" na "Povolit"<br>
+                        4. Obnovte stránku (F5)
+                    </div>
+                    <button onclick="window.location.reload()" class="btn btn-secondary" style="margin-top: 8px;">
+                        <span style="margin-right: 4px;">🔄</span> Obnovit stránku
+                    </button>
+                `
+            },
+            'requesting': {
+                color: 'var(--color-blue)',
+                bgColor: 'var(--color-blue-light)',
+                icon: '🔔',
+                title: 'Vyžádání oprávnění...',
+                description: 'Prosím povolte desktop notifikace v dialogu prohlížeče.'
+            },
+            'not-supported': {
+                color: 'var(--color-yellow)',
+                bgColor: 'var(--color-yellow-light)',
+                icon: '⚠️',
+                title: 'Desktop notifikace nejsou podporovány',
+                description: 'Váš prohlížeč nepodporuje desktop notifikace.'
+            },
+            'error': {
+                color: 'var(--color-red)',
+                bgColor: 'var(--color-red-light)',
+                icon: '❌',
+                title: 'Chyba při vyžádání oprávnění',
+                description: 'Došlo k chybě při pokusu o povolení desktop notifikací.'
+            }
+        };
+        
+        const config = statusConfigs[status] || statusConfigs['error'];
+        
+        return `
+            <div style="display: flex; align-items: start; gap: 12px;">
+                <div style="
+                    width: 32px; height: 32px;
+                    background: ${config.color};
+                    border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center;
+                    color: white; font-size: 16px;
+                ">
+                    ${config.icon}
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                        ${config.title}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px;">
+                        ${config.description}
+                    </div>
+                    ${config.action || ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    showWelcomeNotification() {
+        // Show a welcome notification to confirm everything works
+        setTimeout(() => {
+            const welcomeNotification = new Notification('🎉 PondMonitor Notifikace', {
+                body: 'Desktop notifikace jsou nyní aktivní! Budete informováni o všech upozorněních.',
+                icon: '/static/favicon.ico',
+                tag: 'welcome_notification',
+                requireInteraction: false,
+                silent: false
+            });
+            
+            welcomeNotification.onclick = () => {
+                window.focus();
+                welcomeNotification.close();
+            };
+            
+            // Auto close after 5 seconds
+            setTimeout(() => {
+                welcomeNotification.close();
+            }, 5000);
+        }, 1000);
     }
     
     startPolling() {
