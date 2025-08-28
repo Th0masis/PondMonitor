@@ -74,6 +74,10 @@ class AlertManager {
             this.sendTestNotification();
         });
         
+        document.getElementById('testBrowserNotification')?.addEventListener('click', () => {
+            this.testBrowserNotification();
+        });
+        
         
         // History filters
         document.getElementById('historyTimeRange')?.addEventListener('change', () => {
@@ -182,6 +186,9 @@ class AlertManager {
         document.getElementById('cancelRuleEdit')?.addEventListener('click', () => {
             this.hideModal(ruleModal);
         });
+        
+        // Setup browser notification listeners
+        this.setupBrowserNotificationListeners();
     }
     
     setupAutoRefresh() {
@@ -196,6 +203,104 @@ class AlertManager {
         this.refreshIntervals.statistics = setInterval(() => {
             this.loadStatistics();
         }, 60000);
+    }
+    
+    setupBrowserNotificationListeners() {
+        // Listen for new browser notifications
+        window.addEventListener('pondmonitor:notification', (event) => {
+            const notification = event.detail;
+            console.log('📬 Přijata browser notifikace:', notification);
+            
+            // If we're on the active alerts tab, refresh the list
+            if (this.currentTab === 'active-alerts' && notification.type === 'alert') {
+                setTimeout(() => {
+                    this.loadActiveAlerts();
+                    this.loadStatistics();
+                }, 1000); // Small delay to ensure backend is updated
+            }
+            
+            // Update notification history if we're on notifications tab
+            if (this.currentTab === 'notifications') {
+                this.addNotificationToHistory(notification);
+            }
+        });
+        
+        // Check for existing notifications on page load
+        if (window.BrowserNotificationService) {
+            const existingNotifications = window.BrowserNotificationService.getNotifications();
+            if (existingNotifications.length > 0) {
+                console.log(`📬 Nalezeny ${existingNotifications.length} existující notifikace`);
+            }
+        }
+    }
+    
+    addNotificationToHistory(notification) {
+        const container = document.getElementById('notificationHistoryContainer');
+        if (!container) return;
+        
+        // Create notification history item
+        const historyItem = document.createElement('div');
+        historyItem.className = 'notification-history-item';
+        historyItem.style.cssText = `
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: var(--bg-secondary);
+        `;
+        
+        const severityColors = {
+            'critical': 'var(--color-red)',
+            'warning': 'var(--color-yellow)', 
+            'info': 'var(--color-blue)'
+        };
+        
+        const severityIcons = {
+            'critical': '🚨',
+            'warning': '⚠️',
+            'info': 'ℹ️'
+        };
+        
+        historyItem.innerHTML = `
+            <div style="display: flex; align-items: start; gap: 12px;">
+                <div style="
+                    width: 32px; height: 32px;
+                    border-radius: 50%;
+                    background: ${severityColors[notification.severity] || 'var(--color-blue)'};
+                    display: flex; align-items: center; justify-content: center;
+                    color: white; font-size: 14px;
+                ">
+                    ${severityIcons[notification.severity] || '🔔'}
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                        ${notification.title}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">
+                        ${notification.message}
+                    </div>
+                    <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-muted);">
+                        <span>🕒 ${new Date(notification.timestamp).toLocaleString('cs-CZ')}</span>
+                        ${notification.station_id ? `<span>📍 ${notification.station_id}</span>` : ''}
+                        <span>🔔 Browser</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Insert at the top of the container
+        const emptyState = container.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+        
+        container.insertBefore(historyItem, container.firstChild);
+        
+        // Limit to 20 items
+        const items = container.querySelectorAll('.notification-history-item');
+        if (items.length > 20) {
+            items[items.length - 1].remove();
+        }
     }
     
     async loadInitialData() {
@@ -654,6 +759,35 @@ class AlertManager {
         } catch (error) {
             console.error('Failed to send test notifications:', error);
             this.showError('Chyba při odesílání test notifikací: ' + error.message);
+        } finally {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    }
+    
+    async testBrowserNotification() {
+        const button = document.getElementById('testBrowserNotification');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<div class="spinner"></div> Generuji test...';
+        button.disabled = true;
+        
+        try {
+            const response = await fetch('/api/alerts/test-browser-notification', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) throw new Error('Chyba při generování test notifikace');
+            
+            const result = await response.json();
+            this.showSuccess('Test browser notifikace byla vygenerována! Měla by se zobrazit během několika sekund.');
+            console.log('Test browser notification generated:', result);
+            
+        } catch (error) {
+            console.error('Failed to generate test browser notification:', error);
+            this.showError('Chyba při generování test browser notifikace: ' + error.message);
         } finally {
             button.innerHTML = originalText;
             button.disabled = false;

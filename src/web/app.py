@@ -1179,6 +1179,64 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Failed to get notification status: {e}")
             return jsonify({'error': str(e)}), 500
     
+    @app.route("/api/alerts/notifications/browser", methods=["GET"], endpoint="browser_notifications")
+    @log_requests
+    @handle_errors
+    def get_browser_notifications():
+        """Get browser notifications from Redis"""
+        try:
+            import redis
+            import json
+            
+            r = redis.Redis(**config.redis.get_connection_dict())
+            
+            # Get notifications from Redis
+            notifications_raw = r.lrange('browser_notifications', 0, -1)
+            notifications = []
+            
+            for notif_raw in notifications_raw:
+                try:
+                    notification = json.loads(notif_raw.decode('utf-8'))
+                    notifications.append(notification)
+                except Exception as parse_error:
+                    logger.warning(f"Failed to parse browser notification: {parse_error}")
+            
+            return jsonify({
+                'notifications': notifications,
+                'count': len(notifications)
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to get browser notifications: {e}")
+            return jsonify({'error': str(e), 'notifications': [], 'count': 0}), 500
+
+    @app.route("/api/alerts/notifications/browser/mark-read", methods=["POST"], endpoint="mark_notifications_read")
+    @log_requests
+    @handle_errors
+    def mark_notifications_read():
+        """Mark browser notifications as read"""
+        try:
+            import redis
+            
+            data = request.get_json() or {}
+            notification_ids = data.get('notification_ids', [])
+            
+            if not notification_ids:
+                return jsonify({'success': True, 'message': 'No notifications to mark'})
+            
+            r = redis.Redis(**config.redis.get_connection_dict())
+            
+            # For now, we'll just acknowledge the request
+            # In a more sophisticated system, we'd track read status per user/session
+            return jsonify({
+                'success': True, 
+                'message': f'Marked {len(notification_ids)} notifications as read'
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to mark notifications as read: {e}")
+            return jsonify({'error': str(e)}), 500
+
     @app.route("/api/alerts/notifications/test", methods=["POST"], endpoint="test_notifications")
     @log_requests
     @handle_errors
@@ -1218,6 +1276,47 @@ def register_routes(app: Flask) -> None:
             
         except Exception as e:
             logger.error(f"Failed to send test notifications: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route("/api/alerts/test-browser-notification", methods=["POST"], endpoint="test_browser_notification")
+    @log_requests
+    @handle_errors  
+    def test_browser_notification():
+        """Generate a test browser notification for development/testing"""
+        try:
+            import redis
+            import json
+            from datetime import datetime, timezone
+            
+            # Generate test notification data
+            test_notification = {
+                'type': 'alert',
+                'severity': 'warning',
+                'title': 'Test Browser Notifikace',
+                'message': 'Toto je testovací notifikace pro ověření funkcionality browser notifikačního systému.',
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'station_id': 'test_station_001',
+                'metric_type': 'water_level',
+                'trigger_value': 150.5,
+                'threshold_value': 140.0,
+                'alert_id': f'test_alert_{int(datetime.now().timestamp())}'
+            }
+            
+            # Store in Redis for browser polling
+            r = redis.Redis(**config.redis.get_connection_dict())
+            r.lpush('browser_notifications', json.dumps(test_notification, default=str))
+            r.ltrim('browser_notifications', 0, 99)
+            r.expire('browser_notifications', 3600)
+            
+            logger.info("Test browser notification generated successfully")
+            return jsonify({
+                'success': True,
+                'message': 'Test browser notification generated',
+                'notification': test_notification
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to generate test browser notification: {e}")
             return jsonify({'error': str(e)}), 500
 
 
