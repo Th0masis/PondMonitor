@@ -251,4 +251,45 @@ document.addEventListener('DOMContentLoaded', function() {
   // Update connection status every 30 seconds
   updateConnectionStatus();
   setInterval(updateConnectionStatus, 30000);
+  
+  // Initialize datetime inputs for 24-hour format
+  initDateTimeInputs();
 });
+
+// Initialize datetime inputs with proper formatting and 24-hour format
+function initDateTimeInputs() {
+  const datetimeInputs = document.querySelectorAll('input[type="datetime-local"]');
+  
+  datetimeInputs.forEach(input => {
+    // Set step to 60 seconds (1 minute) to avoid seconds display
+    if (!input.getAttribute('step')) {
+      input.setAttribute('step', '60');
+    }
+    
+    // Try to force 24-hour format by setting the value in a specific way
+    input.addEventListener('focus', function() {
+      // When focused, ensure proper formatting
+      if (this.value) {
+        const date = new Date(this.value);
+        if (!isNaN(date.getTime())) {
+          // Format as ISO string and extract datetime-local format
+          const isoString = date.toISOString();
+          const datetimeLocal = isoString.slice(0, 16); // YYYY-MM-DDTHH:mm
+          this.value = datetimeLocal;
+        }
+      }
+    });
+    
+    // Set default values if needed
+    if (input.id === 'startDate' && !input.value) {
+      const now = new Date();
+      now.setHours(now.getHours() - 24); // 24 hours ago
+      input.value = now.toISOString().slice(0, 16);
+    }
+    
+    if (input.id === 'endDate' && !input.value) {
+      const now = new Date();
+      input.value = now.toISOString().slice(0, 16);
+    }
+  });
+}

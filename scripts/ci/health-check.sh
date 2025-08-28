@@ -106,7 +106,7 @@ if ! check_json_endpoint "$BASE_URL/api/diagnostics" ".services" "Diagnostics AP
 fi
 
 # Static resources
-if ! check_endpoint "$BASE_URL/static/style.css" "200" "CSS assets"; then
+if ! check_endpoint "$BASE_URL/static/css/base.css" "200" "CSS assets"; then
     FAILED_CHECKS=$((FAILED_CHECKS + 1))
 fi
 

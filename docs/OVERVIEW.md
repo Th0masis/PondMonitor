@@ -114,7 +114,12 @@ PondMonitor/
 │   │   ├── 📄 weather.html        # Weather page with meteogram
 │   │   └── 📄 diagnostics.html    # System diagnostics and health
 │   └── 📁 static/                 # CSS, JS, images
-│       └── 📄 style.css           # Custom styles with dark/light theme
+│       ├── 📁 css/               # Modular CSS files
+│       │   ├── 📄 base.css        # Base styles and theme variables
+│       │   ├── 📄 layout.css      # Layout and navigation
+│       │   ├── 📄 components.css  # Reusable components
+│       │   └── 📄 *.css          # Page-specific styles
+│       └── 📁 js/                # JavaScript modules
 ├── 📁 services/                   # Modular services
 │   ├── 📄 weather_service.py      # Weather API integration
 │   ├── 📄 export_service.py       # Data export functionality

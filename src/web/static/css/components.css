@@ -140,6 +140,12 @@
   margin-bottom: 0.5rem;
 }
 
+/* Enhanced datetime-local styling */
+input[type="datetime-local"] {
+  font-family: monospace; /* Better visibility for time values */
+  letter-spacing: 0.5px;
+}
+
 /* Statistics cards */
 .stat-card {
   background: var(--bg-secondary);
