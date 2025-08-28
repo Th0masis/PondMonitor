@@ -36,12 +36,7 @@ class AlertManager {
     }
     
     setupEventListeners() {
-        // Tab navigation
-        document.querySelectorAll('.tab-button').forEach(button => {
-            button.addEventListener('click', (e) => {
-                this.switchTab(e.target.dataset.tab);
-            });
-        });
+        // Tab navigation is handled in setupTabNavigation()
         
         // Refresh buttons
         document.getElementById('refreshActiveAlerts')?.addEventListener('click', () => {
@@ -127,9 +122,12 @@ class AlertManager {
         const tabs = document.querySelectorAll('.tab-button');
         const panels = document.querySelectorAll('.tab-panel');
         
+        console.log(`🔧 AlertManager: Setting up tab navigation - Found ${tabs.length} tabs and ${panels.length} panels`);
+        
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 const targetTab = tab.dataset.tab;
+                console.log(`🔄 AlertManager: Switching to tab: ${targetTab}`);
                 
                 // Update active tab
                 tabs.forEach(t => t.classList.remove('active'));
@@ -1080,6 +1078,25 @@ class AlertManager {
     
     // Utility methods
     switchTab(tabName) {
+        const tabs = document.querySelectorAll('.tab-button');
+        const panels = document.querySelectorAll('.tab-panel');
+        
+        // Update active tab button
+        tabs.forEach(tab => {
+            tab.classList.remove('active');
+            if (tab.dataset.tab === tabName) {
+                tab.classList.add('active');
+            }
+        });
+        
+        // Show corresponding panel
+        panels.forEach(panel => {
+            panel.classList.remove('active');
+            if (panel.id === tabName) {
+                panel.classList.add('active');
+            }
+        });
+        
         this.currentTab = tabName;
         this.loadTabData(tabName);
     }
@@ -1193,7 +1210,13 @@ class AlertManager {
 let alertManager;
 
 document.addEventListener('DOMContentLoaded', () => {
-    alertManager = new AlertManager();
+    console.log('🚨 AlertManager: DOM loaded, initializing...');
+    try {
+        alertManager = new AlertManager();
+        console.log('✅ AlertManager: Successfully initialized');
+    } catch (error) {
+        console.error('❌ AlertManager: Failed to initialize:', error);
+    }
 });
 
 // Cleanup on page unload
