@@ -32,12 +32,34 @@ from abc import ABC, abstractmethod
 
 import requests
 from jinja2 import Environment, FileSystemLoader, Template
-import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from PIL import Image
-from discord_webhook import DiscordWebhook, DiscordEmbed
+
+# Handle optional dependencies gracefully
+try:
+    import matplotlib
+    matplotlib.use('Agg')  # Non-interactive backend
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+    matplotlib = None
+    plt = None
+    mdates = None
+
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    Image = None
+
+try:
+    from discord_webhook import DiscordWebhook, DiscordEmbed
+    DISCORD_AVAILABLE = True
+except ImportError:
+    DISCORD_AVAILABLE = False
+    DiscordWebhook = None
+    DiscordEmbed = None
 
 from ..config import AlertingConfig, get_config
 from ..database import get_database
@@ -98,10 +120,18 @@ class ChartGenerator:
     
     def __init__(self, config: AlertingConfig):
         self.config = config
-        self.db = get_database()
+        try:
+            self.db = get_database()
+        except RuntimeError:
+            # Database not initialized (likely in test environment)
+            self.db = None
         
-        # Configure matplotlib for better-looking charts
-        plt.style.use('seaborn-v0_8' if 'seaborn-v0_8' in plt.style.available else 'default')
+        # Configure matplotlib for better-looking charts if available
+        if MATPLOTLIB_AVAILABLE and plt:
+            try:
+                plt.style.use('seaborn-v0_8' if 'seaborn-v0_8' in plt.style.available else 'default')
+            except:
+                pass
         
     def generate_alert_chart(self, message: NotificationMessage) -> Optional[bytes]:
         """
@@ -114,7 +144,7 @@ class ChartGenerator:
             PNG image data as bytes, or None if generation fails
         """
         try:
-            if not message.include_chart or not self.config.include_charts:
+            if not message.include_chart or not self.config.include_charts or not MATPLOTLIB_AVAILABLE:
                 return None
                 
             # Determine time range
@@ -160,6 +190,10 @@ class ChartGenerator:
     
     def _get_chart_data(self, metric_type: str, station_id: str, start_time: datetime, end_time: datetime) -> List[Dict]:
         """Get data for chart generation"""
+        if self.db is None:
+            logger.warning("Database not available, returning empty chart data")
+            return []
+            
         try:
             if metric_type in ['water_level', 'outflow']:
                 return self.db.get_pond_metrics(start_time, end_time, limit=1000)
@@ -259,6 +293,9 @@ class ChartGenerator:
     
     def _format_chart(self, ax, message: NotificationMessage):
         """Format chart appearance"""
+        if not MATPLOTLIB_AVAILABLE or not mdates:
+            return
+            
         ax.grid(True, alpha=0.3)
         ax.legend(loc='best')
         
@@ -370,7 +407,7 @@ class EmailNotificationChannel(NotificationChannel):
     </div>
 </body>
 </html>'''
-        path.write_text(template_content)
+        path.write_text(template_content, encoding='utf-8')
     
     async def send(self, message: NotificationMessage) -> NotificationResult:
         """Send email notification"""
@@ -468,7 +505,7 @@ class EmailNotificationChannel(NotificationChannel):
             
             # Add chart as attachment if available
             if chart_data:
-                chart_part = MIMEImage(chart_data)
+                chart_part = MIMEImage(chart_data, _subtype='png')
                 chart_part.add_header('Content-Disposition', 'attachment', filename='alert_chart.png')
                 chart_part.add_header('Content-ID', '<chart>')
                 msg.attach(chart_part)

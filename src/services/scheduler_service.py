@@ -23,12 +23,25 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
-from apscheduler.triggers.cron import CronTrigger
-from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.executors.pool import ThreadPoolExecutor
+# Handle optional APScheduler dependencies
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.interval import IntervalTrigger
+    from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
+    from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+    from apscheduler.executors.pool import ThreadPoolExecutor
+    APSCHEDULER_AVAILABLE = True
+except ImportError:
+    APSCHEDULER_AVAILABLE = False
+    BackgroundScheduler = None
+    IntervalTrigger = None
+    CronTrigger = None
+    EVENT_JOB_EXECUTED = None
+    EVENT_JOB_ERROR = None
+    EVENT_JOB_MISSED = None
+    SQLAlchemyJobStore = None
+    ThreadPoolExecutor = None
 
 from ..config import get_config
 from ..database import get_database
@@ -482,10 +495,17 @@ class SchedulerService:
         self._running = False
         self._shutdown_event = threading.Event()
         
+        if not APSCHEDULER_AVAILABLE:
+            logger.warning("APScheduler not available, scheduler service will run in limited mode")
+        
         logger.info("Scheduler service initialized")
     
     def initialize(self):
         """Initialize and configure the scheduler"""
+        if not APSCHEDULER_AVAILABLE:
+            logger.warning("APScheduler not available, scheduler initialization skipped")
+            return
+            
         try:
             # Configure job store (SQLAlchemy)
             db_url = self.config.database.get_connection_string()
