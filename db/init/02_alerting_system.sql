@@ -58,7 +58,7 @@ WHERE enabled = true;
 -- Records all alert events and their outcomes
 -- =====================================================
 CREATE TABLE IF NOT EXISTS alert_history (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT uuid_generate_v4(),
     rule_id UUID NOT NULL REFERENCES alert_rules(id) ON DELETE CASCADE,
     
     -- Alert details
@@ -88,7 +88,10 @@ CREATE TABLE IF NOT EXISTS alert_history (
     -- Store snapshot of metrics that triggered the alert
     
     -- Metadata
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    
+    -- Primary key must include partitioning column for TimescaleDB
+    PRIMARY KEY (id, triggered_at)
 );
 
 -- Create hypertable for time-series optimization
@@ -178,7 +181,7 @@ CREATE TABLE IF NOT EXISTS notification_channels (
 -- Tracks rule evaluation performance and debugging
 -- =====================================================
 CREATE TABLE IF NOT EXISTS alert_rule_evaluations (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT uuid_generate_v4(),
     rule_id UUID NOT NULL REFERENCES alert_rules(id) ON DELETE CASCADE,
     
     -- Evaluation details
@@ -198,7 +201,10 @@ CREATE TABLE IF NOT EXISTS alert_rule_evaluations (
     evaluation_error TEXT,
     
     -- Metadata
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    
+    -- Primary key must include partitioning column for TimescaleDB
+    PRIMARY KEY (id, evaluated_at)
 );
 
 -- Create hypertable for time-series optimization
