@@ -171,7 +171,7 @@ class LoRaGateway:
             
             if missing_tables:
                 logger.error(f"❌ Missing required database tables: {missing_tables}")
-                logger.error("💡 Make sure init_pondmonitor.sql is properly mounted and executed")
+                logger.error("💡 Make sure database init scripts (01_core_tables.sql) are properly mounted and executed")
                 raise Exception(f"Missing database tables: {missing_tables}")
             
             logger.info("✅ Database schema verified - all required tables exist")

@@ -151,10 +151,24 @@ class DatabaseService:
     
     def _check_schema(self) -> None:
         """Verify required database tables exist"""
-        required_tables = ['pond_metrics', 'station_metrics']
+        # Core monitoring tables
+        core_tables = ['pond_metrics', 'station_metrics']
+        
+        # Alerting system tables
+        alerting_tables = [
+            'alert_rules', 
+            'alert_history', 
+            'user_notification_preferences',
+            'notification_channels',
+            'alert_rule_evaluations',
+            'alert_system_settings'
+        ]
+        
+        required_tables = core_tables + alerting_tables
         
         with self.get_connection() as conn:
             with conn.cursor() as cur:
+                # Check all tables
                 cur.execute("""
                     SELECT table_name 
                     FROM information_schema.tables 
@@ -163,10 +177,23 @@ class DatabaseService:
                 """, (required_tables,))
                 
                 existing_tables = [row[0] for row in cur.fetchall()]
-                missing_tables = set(required_tables) - set(existing_tables)
                 
-                if missing_tables:
-                    raise ValidationError(f"Missing required tables: {missing_tables}")
+                # Check core tables (critical - must exist)
+                missing_core = set(core_tables) - set(existing_tables)
+                if missing_core:
+                    logger.error(f"❌ Critical core tables missing: {missing_core}")
+                    raise ValidationError(f"Missing critical core tables: {missing_core}")
+                else:
+                    logger.info(f"✅ Core tables verified: {core_tables}")
+                
+                # Check alerting tables (warn if missing, but don't fail)
+                missing_alerting = set(alerting_tables) - set(existing_tables)
+                if missing_alerting:
+                    logger.warning(f"⚠️ Alerting tables missing: {missing_alerting}")
+                    logger.warning("💡 Alerting system will not be available")
+                    logger.warning("💡 Run database migration to enable alerting features")
+                else:
+                    logger.info(f"✅ Alerting system tables verified: {len(alerting_tables)} tables")
                 
                 logger.info(f"Schema validation passed: {existing_tables}")
     

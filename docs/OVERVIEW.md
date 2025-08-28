@@ -101,7 +101,10 @@ PondMonitor/
 ├── 📄 docker-compose.yml          # Base service configuration (testing mode)
 ├── 📄 docker-compose.prod.yml     # Production overrides (USB devices)
 ├── 📄 LoraGateway.py              # Data acquisition service  
-├── 📄 init_pondmonitor.sql        # Database schema initialization
+├── 📁 db/                         # Database initialization
+│   └── 📁 init/                   # Database schema files
+│       ├── 📄 01_core_tables.sql  # Core monitoring tables
+│       └── 📄 02_alerting_system.sql # Alerting system tables
 ├── 📄 requirements.txt            # Python dependencies
 ├── 📄 Makefile                    # Development commands (auto-detects docker compose)
 ├── 📄 start-testing.sh            # Quick start script

@@ -1149,7 +1149,7 @@ tests/
   - Responsive grid layouts for all screen sizes
   - Mobile-optimized navigation and controls
 
-#### **5. Comprehensive Database Schema (`db/migrations/001_alerting_schema.sql`)**
+#### **5. Comprehensive Database Schema (`db/init/02_alerting_system.sql`)**
 - **Optimized Table Structure**:
   - **alert_rules**: Rule definitions with JSON configuration
   - **alert_history**: Complete alert lifecycle tracking

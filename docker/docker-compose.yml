@@ -77,7 +77,8 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-pond_data}
     volumes:
       - timescale_data:/var/lib/postgresql/data
-      - ../db/init/init_pondmonitor.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ../db/init/01_core_tables.sql:/docker-entrypoint-initdb.d/01_core_tables.sql
+      - ../db/init/02_alerting_system.sql:/docker-entrypoint-initdb.d/02_alerting_system.sql
       - ../db/backups:/backups
     ports:
       - "${POSTGRES_PORT:-5432}:5432"

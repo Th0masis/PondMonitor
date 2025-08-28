@@ -1,6 +1,6 @@
--- PondMonitor Database Initialization Script
+-- PondMonitor Core Database Tables
 -- TimescaleDB Compatible Schema
--- File: ./db/init/init_pondmonitor.sql
+-- File: ./db/init/01_core_tables.sql
 
 -- Ensure TimescaleDB extension is available
 DO $$
