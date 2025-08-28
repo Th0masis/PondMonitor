@@ -67,12 +67,13 @@ class AlertManager {
         
         // Test notifications
         document.getElementById('testNotifications')?.addEventListener('click', () => {
-            this.testNotifications();
+            this.sendTestNotification();
         });
         
         document.getElementById('sendTestNotification')?.addEventListener('click', () => {
             this.sendTestNotification();
         });
+        
         
         // History filters
         document.getElementById('historyTimeRange')?.addEventListener('change', () => {
@@ -527,7 +528,7 @@ class AlertManager {
     async loadNotificationStatus() {
         try {
             const response = await fetch('/api/alerts/notifications/status');
-            if (!response.ok) throw new Error('Failed to load notification status');
+            if (!response.ok) throw new Error('Chyba při načítání stavu notifikací');
             
             const status = await response.json();
             this.notificationStatus = status;
@@ -537,7 +538,7 @@ class AlertManager {
             
         } catch (error) {
             console.error('Failed to load notification status:', error);
-            this.showError('Failed to load notification status');
+            this.showError('Chyba při načítání stavu notifikací');
         }
     }
     
@@ -613,13 +614,13 @@ class AlertManager {
             .map(cb => cb.value);
         
         if (selectedChannels.length === 0) {
-            this.showError('Please select at least one notification channel to test');
+            this.showError('Vyberte alespoň jeden kanál pro test notifikací');
             return;
         }
         
         const button = document.getElementById('sendTestNotification');
         const originalText = button.innerHTML;
-        button.innerHTML = '<div class="spinner"></div> Sending...';
+        button.innerHTML = '<div class="spinner"></div> Odesílám...';
         button.disabled = true;
         
         try {
@@ -633,7 +634,7 @@ class AlertManager {
                 })
             });
             
-            if (!response.ok) throw new Error('Failed to send test notifications');
+            if (!response.ok) throw new Error('Chyba při odesílání test notifikací');
             
             const result = await response.json();
             
@@ -642,9 +643,9 @@ class AlertManager {
             const totalCount = result.results.length;
             
             if (successCount === totalCount) {
-                this.showSuccess(`Test notifications sent successfully to all ${totalCount} channels!`);
+                this.showSuccess(`Test notifikace úspěšně odeslány do všech ${totalCount} kanálů!`);
             } else {
-                this.showWarning(`Test notifications: ${successCount}/${totalCount} successful`);
+                this.showWarning(`Test notifikace: ${successCount}/${totalCount} úspěšných`);
             }
             
             // Update notification history
@@ -652,7 +653,7 @@ class AlertManager {
             
         } catch (error) {
             console.error('Failed to send test notifications:', error);
-            this.showError('Failed to send test notifications: ' + error.message);
+            this.showError('Chyba při odesílání test notifikací: ' + error.message);
         } finally {
             button.innerHTML = originalText;
             button.disabled = false;

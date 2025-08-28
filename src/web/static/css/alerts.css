@@ -21,7 +21,7 @@
 }
 
 .subtitle {
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 1.1rem;
     margin-bottom: 2rem;
 }
@@ -60,6 +60,11 @@
     font-size: 2rem;
 }
 
+.stat-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
 .stat-icon.critical {
     background: linear-gradient(135deg, #ff416c, #ff4757);
     color: white;
@@ -92,7 +97,7 @@
 }
 
 .stat-label {
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 0.9rem;
     margin-top: 0.25rem;
 }
@@ -122,7 +127,7 @@
     padding: 0.75rem 1.5rem;
     border: none;
     background: transparent;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     cursor: pointer;
     border-radius: 8px;
     font-weight: 500;
@@ -269,7 +274,7 @@
 
 .alert-meta {
     font-size: 0.9rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
@@ -305,7 +310,7 @@
 
 .alert-detail-label {
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-weight: 600;
     text-transform: uppercase;
 }
@@ -585,7 +590,7 @@
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     padding: 0.25rem;
 }
 
@@ -646,7 +651,7 @@
 .form-group small {
     display: block;
     margin-top: 0.25rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-size: 0.85rem;
 }
 
@@ -681,7 +686,7 @@
     justify-content: center;
     gap: 1rem;
     padding: 3rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
 }
 
 .spinner {
@@ -701,7 +706,7 @@
 .empty-state {
     text-align: center;
     padding: 3rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
 }
 
 .empty-icon {

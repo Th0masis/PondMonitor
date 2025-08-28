@@ -1,22 +1,24 @@
 {% extends "base.html" %}
 {% set active_page = "alerts" %}
-{% set page_title = "Správa upozornění" %}
+{% block title %}Upozornění - PondMonitor{% endblock %}
+{% block page_title %}Správa upozornění{% endblock %}
+{% block page_subtitle %}Nastavte pravidla upozornění, sledujte aktivní upozornění a spravujte nastavení notifikací{% endblock %}
 
-{% block head %}
+{% block page_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
 {% endblock %}
 
 {% block content %}
 <div class="alerts-container">
-    <!-- Header Section -->
-    <div class="alerts-header">
-        <h1>🚨 Správa upozornění</h1>
-        <p class="subtitle">Nastavte pravidla upozornění, sledujte aktivní upozornění a spravujte nastavení notifikací</p>
         
         <!-- Quick Stats Cards -->
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-icon critical">⚠️</div>
+                <div class="stat-icon critical">
+                    <svg fill="currentColor" viewBox="0 0 20 20" style="width: 1.5rem; height: 1.5rem;">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
                 <div class="stat-content">
                     <div class="stat-value" id="activeAlertsCount">--</div>
                     <div class="stat-label">Aktivní upozornění</div>
@@ -24,7 +26,11 @@
             </div>
             
             <div class="stat-card">
-                <div class="stat-icon success">📋</div>
+                <div class="stat-icon success">
+                    <svg fill="currentColor" viewBox="0 0 20 20" style="width: 1.5rem; height: 1.5rem;">
+                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
                 <div class="stat-content">
                     <div class="stat-value" id="rulesCount">--</div>
                     <div class="stat-label">Pravidla upozornění</div>
@@ -32,7 +38,12 @@
             </div>
             
             <div class="stat-card">
-                <div class="stat-icon info">📤</div>
+                <div class="stat-icon info">
+                    <svg fill="currentColor" viewBox="0 0 20 20" style="width: 1.5rem; height: 1.5rem;">
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                    </svg>
+                </div>
                 <div class="stat-content">
                     <div class="stat-value" id="notificationsCount">--</div>
                     <div class="stat-label">Notifikace (24h)</div>
@@ -40,21 +51,24 @@
             </div>
             
             <div class="stat-card notification-status" id="notificationStatus">
-                <div class="stat-icon" id="notificationStatusIcon">🔔</div>
+                <div class="stat-icon" id="notificationStatusIcon">
+                    <svg fill="currentColor" viewBox="0 0 20 20" style="width: 1.5rem; height: 1.5rem;">
+                        <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path>
+                    </svg>
+                </div>
                 <div class="stat-content">
                     <div class="stat-value" id="channelsOnlineCount">--</div>
                     <div class="stat-label">Aktivní kanály</div>
                 </div>
             </div>
         </div>
-    </div>
 
     <!-- Tab Navigation -->
     <div class="tab-navigation">
-        <button class="tab-button active" data-tab="active-alerts">🚨 Aktivní upozornění</button>
-        <button class="tab-button" data-tab="alert-rules">📋 Pravidla</button>
-        <button class="tab-button" data-tab="history">📊 Historie</button>
-        <button class="tab-button" data-tab="notifications">🔔 Notifikace</button>
+        <button class="tab-button active" data-tab="active-alerts">Aktivní upozornění</button>
+        <button class="tab-button" data-tab="alert-rules">Pravidla</button>
+        <button class="tab-button" data-tab="history">Historie</button>
+        <button class="tab-button" data-tab="notifications">Notifikace</button>
     </div>
 
     <!-- Tab Content -->
@@ -191,54 +205,99 @@
         <!-- Notifications Tab -->
         <div id="notifications" class="tab-panel">
             <div class="panel-header">
-                <h2>Notification Settings</h2>
+                <h2>Nastavení notifikací</h2>
                 <div class="panel-actions">
                     <button id="testNotifications" class="btn btn-secondary">
-                        <span class="icon">🧪</span> Test Notifications
+                        <span class="icon">🧪</span> Testovat notifikace
                     </button>
                     <button id="refreshNotificationStatus" class="btn btn-secondary">
-                        <span class="icon">🔄</span> Refresh Status
+                        <span class="icon">🔄</span> Obnovit stav
                     </button>
                 </div>
             </div>
             
             <!-- Notification Channels Status -->
             <div class="notification-channels">
-                <h3>📡 Notification Channels</h3>
+                <h3>📡 Kanály notifikací</h3>
                 <div id="notificationChannelsContainer">
                     <div class="loading">
                         <div class="spinner"></div>
-                        <span>Loading notification status...</span>
+                        <span>Načítám stav notifikací...</span>
+                    </div>
+                </div>
+                
+                <!-- Configuration Help -->
+                <div class="config-help" style="margin-top: 20px; padding: 15px; background: var(--bg-tertiary); border-radius: 8px; border-left: 4px solid var(--color-blue);">
+                    <h4 style="margin-top: 0; color: var(--color-blue);">⚙️ Konfigurace kanálů</h4>
+                    <p style="margin: 10px 0; color: var(--text-secondary);">Pro aktivaci notifikačních kanálů je třeba nastavit následující proměnné prostředí:</p>
+                    
+                    <div class="config-section" style="margin: 15px 0;">
+                        <h5 style="color: var(--text-primary); margin-bottom: 8px;">📧 Email</h5>
+                        <div style="font-family: monospace; font-size: 12px; background: var(--bg-secondary); padding: 10px; border-radius: 4px; color: var(--text-secondary);">
+                            ALERTING_EMAIL_ENABLED=true<br>
+                            ALERTING_SMTP_SERVER=smtp.gmail.com<br>
+                            ALERTING_SMTP_PORT=587<br>
+                            ALERTING_SMTP_USERNAME=váš@email.com<br>
+                            ALERTING_SMTP_PASSWORD=heslo_aplikace<br>
+                            ALERTING_EMAIL_TO=příjemce@email.com
+                        </div>
+                    </div>
+                    
+                    <div class="config-section" style="margin: 15px 0;">
+                        <h5 style="color: var(--text-primary); margin-bottom: 8px;">💬 Telegram</h5>
+                        <div style="font-family: monospace; font-size: 12px; background: var(--bg-secondary); padding: 10px; border-radius: 4px; color: var(--text-secondary);">
+                            ALERTING_TELEGRAM_ENABLED=true<br>
+                            ALERTING_TELEGRAM_BOT_TOKEN=1234567890:ABCDEF...<br>
+                            ALERTING_TELEGRAM_CHAT_ID=-1001234567890
+                        </div>
+                        <small style="color: var(--text-secondary); font-style: italic;">
+                            Bot token získáte od @BotFather, Chat ID z @userinfobot
+                        </small>
+                    </div>
+                    
+                    <div class="config-section" style="margin: 15px 0;">
+                        <h5 style="color: var(--text-primary); margin-bottom: 8px;">🎮 Discord</h5>
+                        <div style="font-family: monospace; font-size: 12px; background: var(--bg-secondary); padding: 10px; border-radius: 4px; color: var(--text-secondary);">
+                            ALERTING_DISCORD_ENABLED=true<br>
+                            ALERTING_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+                        </div>
+                        <small style="color: var(--text-secondary); font-style: italic;">
+                            Webhook URL vytvoříte v nastavení Discord kanálu
+                        </small>
+                    </div>
+                    
+                    <div class="config-note" style="margin-top: 15px; padding: 10px; background: var(--color-yellow-light); border-radius: 4px; color: var(--text-primary);">
+                        <strong>📝 Poznámka:</strong> Po změně konfigurace restartujte aplikaci příkazem <code style="background: var(--bg-secondary); padding: 2px 4px; border-radius: 3px;">docker-compose restart</code>
                     </div>
                 </div>
             </div>
             
             <!-- Test Notifications -->
             <div class="test-notifications">
-                <h3>🧪 Test Notifications</h3>
+                <h3>🧪 Test notifikací</h3>
                 <div class="test-form">
                     <div class="form-group">
-                        <label>Select Channels to Test:</label>
+                        <label>Vyberte kanály pro test:</label>
                         <div class="checkbox-group">
                             <label><input type="checkbox" value="email" checked> 📧 Email</label>
                             <label><input type="checkbox" value="telegram"> 💬 Telegram</label>
                             <label><input type="checkbox" value="discord"> 🎮 Discord</label>
-                            <label><input type="checkbox" value="browser"> 🌐 Browser</label>
+                            <label><input type="checkbox" value="browser" checked> 🌐 Prohlížeč</label>
                         </div>
                     </div>
                     <button id="sendTestNotification" class="btn btn-primary">
-                        <span class="icon">📤</span> Send Test Notification
+                        <span class="icon">📤</span> Poslat test notifikaci
                     </button>
                 </div>
             </div>
             
             <!-- Notification History -->
             <div class="notification-history">
-                <h3>📋 Recent Notifications</h3>
+                <h3>📋 Nedávné notifikace</h3>
                 <div id="notificationHistoryContainer">
                     <div class="empty-state">
                         <div class="empty-icon">📭</div>
-                        <p>Notification history will appear here</p>
+                        <p>Historie notifikací se zobrazí zde</p>
                     </div>
                 </div>
             </div>
