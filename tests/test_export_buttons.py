@@ -21,6 +21,11 @@ _db_patcher = unittest.mock.patch('src.database.init_database')
 _db_mock = _db_patcher.start()
 _db_mock.return_value = Mock()
 
+# Mock get_database function globally for this test module
+_get_db_patcher = unittest.mock.patch('src.database.get_database')
+_get_db_mock = _get_db_patcher.start()
+_get_db_mock.return_value = Mock()
+
 # Mock connection pool creation globally for this test module
 _pool_patcher = unittest.mock.patch('psycopg2.pool.SimpleConnectionPool')
 _pool_mock = _pool_patcher.start()
@@ -29,6 +34,7 @@ _pool_mock.return_value = Mock()
 def teardown_module():
     """Clean up global patches after all tests in this module complete"""
     _db_patcher.stop()
+    _get_db_patcher.stop()
     _pool_patcher.stop()
 
 class TestExportButtonFunctionality:
