@@ -601,7 +601,7 @@ class AdvancedExportService:
             
             # Resample
             if interval == 'hourly':
-                resampled = df.resample('H').agg(agg_rules)
+                resampled = df.resample('h').agg(agg_rules)
             elif interval == 'daily':
                 resampled = df.resample('D').agg(agg_rules)
             else:
