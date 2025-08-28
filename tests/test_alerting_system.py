@@ -431,12 +431,15 @@ class TestNotificationService:
         except ImportError:
             pytest.skip("discord_webhook module not available")
             
-        with patch('discord_webhook.DiscordWebhook') as mock_webhook:
+        with patch('src.services.notification_service.DiscordWebhook') as mock_webhook:
             # Mock successful response
             mock_response = Mock()
             mock_response.status_code = 200
+            mock_response.text = "OK"
             mock_webhook_instance = Mock()
             mock_webhook_instance.execute.return_value = mock_response
+            mock_webhook_instance.add_embed = Mock()
+            mock_webhook_instance.add_file = Mock()
             mock_webhook.return_value = mock_webhook_instance
             
             channel = DiscordNotificationChannel(mock_config)
