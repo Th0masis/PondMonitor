@@ -31,11 +31,35 @@ _pool_patcher = unittest.mock.patch('psycopg2.pool.SimpleConnectionPool')
 _pool_mock = _pool_patcher.start()
 _pool_mock.return_value = Mock()
 
+# Additional mocks for notification service that may call get_database()
+_notification_service_patcher = unittest.mock.patch('src.services.notification_service.get_database')
+_notification_service_mock = _notification_service_patcher.start()
+_notification_service_mock.return_value = Mock()
+
+# Mock redis for weather service (doesn't use get_database)
+_redis_patcher = unittest.mock.patch('redis.Redis')
+_redis_mock = _redis_patcher.start()
+_redis_mock.return_value = Mock()
+
+# Mock AlertEngine constructor to prevent database calls
+_alert_engine_patcher = unittest.mock.patch('src.services.alert_engine.AlertEngine')
+_alert_engine_mock = _alert_engine_patcher.start()
+_alert_engine_mock.return_value = Mock()
+
+# Mock SchedulerService to prevent database calls  
+_scheduler_service_patcher = unittest.mock.patch('src.services.scheduler_service.SchedulerService')
+_scheduler_service_mock = _scheduler_service_patcher.start()
+_scheduler_service_mock.return_value = Mock()
+
 def teardown_module():
     """Clean up global patches after all tests in this module complete"""
     _db_patcher.stop()
     _get_db_patcher.stop()
     _pool_patcher.stop()
+    _notification_service_patcher.stop()
+    _redis_patcher.stop()
+    _alert_engine_patcher.stop()
+    _scheduler_service_patcher.stop()
 
 class TestExportButtonFunctionality:
     """Test export page button functionality and API interactions"""
