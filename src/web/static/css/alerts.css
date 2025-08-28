@@ -136,9 +136,21 @@
 }
 
 .tab-button.active {
-    background: var(--primary-color);
+    background: var(--color-blue);
     color: white;
     transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* Fix active button text visibility in light mode */
+[data-theme="light"] .tab-button.active {
+    background: var(--color-blue);
+    color: white;
+}
+
+[data-theme="dark"] .tab-button.active {
+    background: var(--color-blue);
+    color: white;
 }
 
 /* === Tab Content === */
@@ -545,13 +557,14 @@
 }
 
 .modal-content {
-    background: var(--card-bg);
-    border-radius: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     max-width: 800px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 20px var(--shadow);
 }
 
 .modal-header {

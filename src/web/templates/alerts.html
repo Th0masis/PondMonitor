@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% set active_page = "alerts" %}
-{% set page_title = "Alert Management" %}
+{% set page_title = "Správa upozornění" %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
@@ -10,8 +10,8 @@
 <div class="alerts-container">
     <!-- Header Section -->
     <div class="alerts-header">
-        <h1>🚨 Alert Management</h1>
-        <p class="subtitle">Configure alert rules, monitor active alerts, and manage notification settings</p>
+        <h1>🚨 Správa upozornění</h1>
+        <p class="subtitle">Nastavte pravidla upozornění, sledujte aktivní upozornění a spravujte nastavení notifikací</p>
         
         <!-- Quick Stats Cards -->
         <div class="stats-grid">
@@ -19,7 +19,7 @@
                 <div class="stat-icon critical">⚠️</div>
                 <div class="stat-content">
                     <div class="stat-value" id="activeAlertsCount">--</div>
-                    <div class="stat-label">Active Alerts</div>
+                    <div class="stat-label">Aktivní upozornění</div>
                 </div>
             </div>
             
@@ -27,7 +27,7 @@
                 <div class="stat-icon success">📋</div>
                 <div class="stat-content">
                     <div class="stat-value" id="rulesCount">--</div>
-                    <div class="stat-label">Alert Rules</div>
+                    <div class="stat-label">Pravidla upozornění</div>
                 </div>
             </div>
             
@@ -35,7 +35,7 @@
                 <div class="stat-icon info">📤</div>
                 <div class="stat-content">
                     <div class="stat-value" id="notificationsCount">--</div>
-                    <div class="stat-label">Notifications (24h)</div>
+                    <div class="stat-label">Notifikace (24h)</div>
                 </div>
             </div>
             
@@ -43,7 +43,7 @@
                 <div class="stat-icon" id="notificationStatusIcon">🔔</div>
                 <div class="stat-content">
                     <div class="stat-value" id="channelsOnlineCount">--</div>
-                    <div class="stat-label">Channels Online</div>
+                    <div class="stat-label">Aktivní kanály</div>
                 </div>
             </div>
         </div>
@@ -51,10 +51,10 @@
 
     <!-- Tab Navigation -->
     <div class="tab-navigation">
-        <button class="tab-button active" data-tab="active-alerts">🚨 Active Alerts</button>
-        <button class="tab-button" data-tab="alert-rules">📋 Alert Rules</button>
-        <button class="tab-button" data-tab="history">📊 Alert History</button>
-        <button class="tab-button" data-tab="notifications">🔔 Notifications</button>
+        <button class="tab-button active" data-tab="active-alerts">🚨 Aktivní upozornění</button>
+        <button class="tab-button" data-tab="alert-rules">📋 Pravidla</button>
+        <button class="tab-button" data-tab="history">📊 Historie</button>
+        <button class="tab-button" data-tab="notifications">🔔 Notifikace</button>
     </div>
 
     <!-- Tab Content -->
@@ -62,13 +62,13 @@
         <!-- Active Alerts Tab -->
         <div id="active-alerts" class="tab-panel active">
             <div class="panel-header">
-                <h2>Active Alerts</h2>
+                <h2>Aktivní upozornění</h2>
                 <div class="panel-actions">
                     <button id="refreshActiveAlerts" class="btn btn-secondary">
-                        <span class="icon">🔄</span> Refresh
+                        <span class="icon">🔄</span> Obnovit
                     </button>
                     <button id="acknowledgeAllAlerts" class="btn btn-warning">
-                        <span class="icon">✅</span> Acknowledge All
+                        <span class="icon">✅</span> Potvrdit vše
                     </button>
                 </div>
             </div>
@@ -76,27 +76,27 @@
             <div id="activeAlertsContainer">
                 <div class="loading" id="activeAlertsLoading">
                     <div class="spinner"></div>
-                    <span>Loading active alerts...</span>
+                    <span>Načítám aktivní upozornění...</span>
                 </div>
             </div>
             
             <div id="noActiveAlerts" class="empty-state" style="display: none;">
                 <div class="empty-icon">✅</div>
-                <h3>No Active Alerts</h3>
-                <p>All systems are operating normally. No alerts require attention at this time.</p>
+                <h3>Žádná aktivní upozornění</h3>
+                <p>Všechny systémy fungují normálně. V tuto chvíli nevyžadují pozornost žádná upozornění.</p>
             </div>
         </div>
 
         <!-- Alert Rules Tab -->
         <div id="alert-rules" class="tab-panel">
             <div class="panel-header">
-                <h2>Alert Rules</h2>
+                <h2>Pravidla upozornění</h2>
                 <div class="panel-actions">
                     <button id="refreshAlertRules" class="btn btn-secondary">
-                        <span class="icon">🔄</span> Refresh
+                        <span class="icon">🔄</span> Obnovit
                     </button>
                     <button id="createNewRule" class="btn btn-primary">
-                        <span class="icon">➕</span> New Rule
+                        <span class="icon">➕</span> Nové pravidlo
                     </button>
                 </div>
             </div>
@@ -104,11 +104,11 @@
             <!-- Rule Filters -->
             <div class="filters-row">
                 <select id="ruleTypeFilter" class="filter-select">
-                    <option value="">All Rule Types</option>
-                    <option value="threshold">Threshold</option>
-                    <option value="range">Range</option>
-                    <option value="rate_of_change">Rate of Change</option>
-                    <option value="missing_data">Missing Data</option>
+                    <option value="">Všechny typy pravidel</option>
+                    <option value="threshold">Prahová hodnota</option>
+                    <option value="range">Rozsah</option>
+                    <option value="rate_of_change">Rychlost změny</option>
+                    <option value="missing_data">Chybějící data</option>
                 </select>
                 
                 <select id="metricTypeFilter" class="filter-select">
@@ -250,33 +250,33 @@
 <div id="ruleModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 id="ruleModalTitle">Create Alert Rule</h3>
+            <h3 id="ruleModalTitle">Vytvořit pravidlo upozornění</h3>
             <button class="modal-close">&times;</button>
         </div>
         
         <form id="ruleForm">
             <div class="form-row">
                 <div class="form-group">
-                    <label for="ruleName">Rule Name*</label>
+                    <label for="ruleName">Název pravidla*</label>
                     <input type="text" id="ruleName" name="name" required 
-                           placeholder="e.g., High Water Level Alert">
+                           placeholder="např. Vysoká hladina vody">
                 </div>
                 
                 <div class="form-group">
-                    <label for="ruleSeverity">Severity*</label>
+                    <label for="ruleSeverity">Závažnost*</label>
                     <select id="ruleSeverity" name="severity" required>
-                        <option value="">Select Severity</option>
-                        <option value="info">ℹ️ Info</option>
-                        <option value="warning">⚠️ Warning</option>
-                        <option value="critical">🚨 Critical</option>
+                        <option value="">Vyberte závažnost</option>
+                        <option value="info">ℹ️ Informace</option>
+                        <option value="warning">⚠️ Varování</option>
+                        <option value="critical">🚨 Kritické</option>
                     </select>
                 </div>
             </div>
             
             <div class="form-group">
-                <label for="ruleDescription">Description</label>
+                <label for="ruleDescription">Popis</label>
                 <textarea id="ruleDescription" name="description" rows="2"
-                         placeholder="Describe when this rule should trigger"></textarea>
+                         placeholder="Popište, kdy se má toto pravidlo spustit"></textarea>
             </div>
             
             <div class="form-row">
@@ -357,9 +357,9 @@
             </div>
             
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" id="cancelRuleEdit">Cancel</button>
+                <button type="button" class="btn btn-secondary" id="cancelRuleEdit">Zrušit</button>
                 <button type="submit" class="btn btn-primary">
-                    <span class="icon">💾</span> Save Rule
+                    <span class="icon">💾</span> Uložit pravidlo
                 </button>
             </div>
         </form>
@@ -370,7 +370,7 @@
 <div id="alertModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 id="alertModalTitle">Alert Details</h3>
+            <h3 id="alertModalTitle">Detaily upozornění</h3>
             <button class="modal-close">&times;</button>
         </div>
         
@@ -379,7 +379,7 @@
         </div>
         
         <div class="modal-actions" id="alertModalActions">
-            <button type="button" class="btn btn-secondary modal-close">Close</button>
+            <button type="button" class="btn btn-secondary modal-close">Zavřít</button>
         </div>
     </div>
 </div>
