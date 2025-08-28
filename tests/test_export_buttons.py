@@ -13,53 +13,37 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-# Apply global patches immediately after path setup to prevent database connections
+# Apply module-specific patches - only for this test module
 import unittest.mock
+import pytest
 
-# Mock database initialization globally for this test module
-_db_patcher = unittest.mock.patch('src.database.init_database')
-_db_mock = _db_patcher.start()
-_db_mock.return_value = Mock()
+# Module-level fixtures to isolate mocks to this test file
+@pytest.fixture(autouse=True, scope="module") 
+def setup_export_test_mocks():
+    """Setup mocks specifically for export button tests"""
+    
+    # Mock database initialization
+    with unittest.mock.patch('src.database.init_database') as db_mock, \
+         unittest.mock.patch('src.database.get_database') as get_db_mock, \
+         unittest.mock.patch('psycopg2.pool.SimpleConnectionPool') as pool_mock, \
+         unittest.mock.patch('src.services.notification_service.get_database') as notif_db_mock, \
+         unittest.mock.patch('redis.Redis') as redis_mock, \
+         unittest.mock.patch('src.services.alert_engine.AlertEngine') as alert_engine_mock, \
+         unittest.mock.patch('src.services.scheduler_service.SchedulerService') as scheduler_mock:
+        
+        # Configure mocks
+        db_mock.return_value = Mock()
+        get_db_mock.return_value = Mock()
+        pool_mock.return_value = Mock()
+        notif_db_mock.return_value = Mock()
+        redis_mock.return_value = Mock()
+        alert_engine_mock.return_value = Mock()
+        scheduler_mock.return_value = Mock()
+        
+        yield  # Run tests
+        
+        # Cleanup happens automatically when context managers exit
 
-# Mock get_database function globally for this test module
-_get_db_patcher = unittest.mock.patch('src.database.get_database')
-_get_db_mock = _get_db_patcher.start()
-_get_db_mock.return_value = Mock()
-
-# Mock connection pool creation globally for this test module
-_pool_patcher = unittest.mock.patch('psycopg2.pool.SimpleConnectionPool')
-_pool_mock = _pool_patcher.start()
-_pool_mock.return_value = Mock()
-
-# Additional mocks for notification service that may call get_database()
-_notification_service_patcher = unittest.mock.patch('src.services.notification_service.get_database')
-_notification_service_mock = _notification_service_patcher.start()
-_notification_service_mock.return_value = Mock()
-
-# Mock redis for weather service (doesn't use get_database)
-_redis_patcher = unittest.mock.patch('redis.Redis')
-_redis_mock = _redis_patcher.start()
-_redis_mock.return_value = Mock()
-
-# Mock AlertEngine constructor to prevent database calls
-_alert_engine_patcher = unittest.mock.patch('src.services.alert_engine.AlertEngine')
-_alert_engine_mock = _alert_engine_patcher.start()
-_alert_engine_mock.return_value = Mock()
-
-# Mock SchedulerService to prevent database calls  
-_scheduler_service_patcher = unittest.mock.patch('src.services.scheduler_service.SchedulerService')
-_scheduler_service_mock = _scheduler_service_patcher.start()
-_scheduler_service_mock.return_value = Mock()
-
-def teardown_module():
-    """Clean up global patches after all tests in this module complete"""
-    _db_patcher.stop()
-    _get_db_patcher.stop()
-    _pool_patcher.stop()
-    _notification_service_patcher.stop()
-    _redis_patcher.stop()
-    _alert_engine_patcher.stop()
-    _scheduler_service_patcher.stop()
 
 class TestExportButtonFunctionality:
     """Test export page button functionality and API interactions"""
