@@ -23,6 +23,9 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass
 
+# Initialize logger first
+logger = logging.getLogger(__name__)
+
 # Handle optional APScheduler dependencies
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
@@ -48,8 +51,6 @@ from ..config import get_config
 from ..database import get_database
 from .alert_engine import get_alert_engine
 from .notification_service import get_notification_service
-
-logger = logging.getLogger(__name__)
 
 
 # Standalone job functions that can be pickled
