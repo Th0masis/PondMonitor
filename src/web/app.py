@@ -116,6 +116,10 @@ def create_app(config_file: str = ".env") -> Flask:
         scheduler_service = init_scheduler_service()
         logger.info("✅ Scheduler service initialized")
         
+        # Start scheduler service
+        scheduler_service.start()
+        logger.info("✅ Scheduler service started")
+        
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
         raise
@@ -496,7 +500,6 @@ def register_routes(app: Flask) -> None:
     @handle_errors
     def export_data(format: str):
         """Export data in specified format"""
-        
         start = request.args.get("start")
         end = request.args.get("end")
         

@@ -206,6 +206,7 @@ class AlertManager {
         // Auto-refresh statistics every 60 seconds
         this.refreshIntervals.statistics = setInterval(() => {
             this.loadStatistics();
+            this.loadNotificationStatus(); // Also refresh notification status
         }, 60000);
     }
     
@@ -215,11 +216,14 @@ class AlertManager {
             const notification = event.detail;
             console.log('📬 Přijata browser notifikace:', notification);
             
+            // Refresh notification status and statistics when new notification arrives
+            this.loadNotificationStatus();
+            this.loadStatistics();
+            
             // If we're on the active alerts tab, refresh the list
             if (this.currentTab === 'active-alerts' && notification.type === 'alert') {
                 setTimeout(() => {
                     this.loadActiveAlerts();
-                    this.loadStatistics();
                 }, 1000); // Small delay to ensure backend is updated
             }
             
@@ -309,6 +313,7 @@ class AlertManager {
     
     async loadInitialData() {
         await this.loadStatistics();
+        await this.loadNotificationStatus(); // Load notification status on initial page load
         await this.loadTabData(this.currentTab);
     }
     
