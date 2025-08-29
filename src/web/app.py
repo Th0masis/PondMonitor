@@ -1047,6 +1047,58 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Failed to get active alerts: {e}")
             return jsonify({'error': str(e)}), 500
     
+    # Debug endpoint for alert statuses
+    @app.route("/api/alerts/debug", endpoint="debug_alerts")
+    @log_requests
+    @handle_errors
+    def debug_alerts():
+        """Debug endpoint to check alert statuses in database"""
+        try:
+            from src.services.alert_engine import AlertStatus
+            db = get_database()
+            
+            # Get recent alerts with their statuses
+            result = db.execute_query("""
+                SELECT id, severity, status, triggered_at, message, 
+                       acknowledged_at, resolved_at
+                FROM alert_history 
+                ORDER BY triggered_at DESC 
+                LIMIT 20
+            """)
+            
+            alerts_debug = []
+            for row_dict in result.to_dict_list():
+                alerts_debug.append({
+                    'id': row_dict['id'],
+                    'severity': row_dict['severity'],
+                    'status': row_dict['status'],
+                    'triggered_at': row_dict['triggered_at'].isoformat() if row_dict['triggered_at'] else None,
+                    'message': row_dict['message'],
+                    'acknowledged_at': row_dict['acknowledged_at'].isoformat() if row_dict['acknowledged_at'] else None,
+                    'resolved_at': row_dict['resolved_at'].isoformat() if row_dict['resolved_at'] else None
+                })
+            
+            # Also get counts by status
+            status_result = db.execute_query("""
+                SELECT status, COUNT(*) as count 
+                FROM alert_history 
+                GROUP BY status
+            """)
+            
+            status_counts = {}
+            for row_dict in status_result.to_dict_list():
+                status_counts[row_dict['status']] = row_dict['count']
+            
+            return jsonify({
+                'recent_alerts': alerts_debug,
+                'status_counts': status_counts,
+                'active_alerts_query': AlertStatus.ACTIVE.value
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to debug alerts: {e}")
+            return jsonify({'error': str(e)}), 500
+    
     @app.route("/api/alerts/<alert_id>/acknowledge", methods=["POST"], endpoint="acknowledge_alert")
     @log_requests
     @handle_errors

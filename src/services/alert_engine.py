@@ -804,32 +804,43 @@ class AlertEngine:
             query += " ORDER BY triggered_at DESC"
             
             result = self.db.execute_query(query, tuple(params))
+            logger.debug(f"Active alerts query returned {len(result.rows)} rows")
             
             alerts = []
             for row_dict in result.to_dict_list():
-                # Parse JSON fields
-                notifications_sent = json.loads(row_dict['notifications_sent']) if row_dict['notifications_sent'] else []
-                related_data = json.loads(row_dict['related_data']) if row_dict['related_data'] else {}
-                
-                alert = AlertEvent(
-                    id=row_dict['id'],
-                    rule_id=row_dict['rule_id'],
-                    severity=AlertSeverity(row_dict['severity']),
-                    metric_type=MetricType(row_dict['metric_type']),
-                    station_id=row_dict['station_id'],
-                    triggered_at=row_dict['triggered_at'],
-                    trigger_value=row_dict['trigger_value'],
-                    threshold_value=row_dict['threshold_value'],
-                    message=row_dict['message'],
-                    status=AlertStatus(row_dict['status']),
-                    acknowledged_at=row_dict['acknowledged_at'],
-                    acknowledged_by=row_dict['acknowledged_by'],
-                    resolved_at=row_dict['resolved_at'],
-                    resolved_by=row_dict['resolved_by'],
-                    notifications_sent=notifications_sent,
-                    related_data=related_data
-                )
-                alerts.append(alert)
+                try:
+                    # Parse JSON fields - handle both string and already-parsed data
+                    notifications_sent = row_dict['notifications_sent'] or []
+                    if isinstance(notifications_sent, str):
+                        notifications_sent = json.loads(notifications_sent)
+                    
+                    related_data = row_dict['related_data'] or {}
+                    if isinstance(related_data, str):
+                        related_data = json.loads(related_data)
+                    
+                    alert = AlertEvent(
+                        id=row_dict['id'],
+                        rule_id=row_dict['rule_id'],
+                        severity=AlertSeverity(row_dict['severity']),
+                        metric_type=MetricType(row_dict['metric_type']),
+                        station_id=row_dict['station_id'],
+                        triggered_at=row_dict['triggered_at'],
+                        trigger_value=row_dict['trigger_value'],
+                        threshold_value=row_dict['threshold_value'],
+                        message=row_dict['message'],
+                        status=AlertStatus(row_dict['status']),
+                        acknowledged_at=row_dict['acknowledged_at'],
+                        acknowledged_by=row_dict['acknowledged_by'],
+                        resolved_at=row_dict['resolved_at'],
+                        resolved_by=row_dict['resolved_by'],
+                        notifications_sent=notifications_sent,
+                        related_data=related_data
+                    )
+                    alerts.append(alert)
+                except Exception as parse_error:
+                    logger.error(f"Failed to parse alert {row_dict.get('id', 'unknown')}: {parse_error}")
+                    logger.error(f"Alert data: {row_dict}")
+                    # Continue with next alert instead of failing completely
             
             return alerts
             

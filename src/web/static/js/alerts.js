@@ -374,14 +374,17 @@ class AlertManager {
             if (!response.ok) throw new Error('Failed to load active alerts');
             
             const alerts = await response.json();
+            console.log('DEBUG: Active alerts loaded:', alerts);
             this.activeAlerts = alerts;
             
             this.hideLoading(loading);
             
             if (alerts.length === 0) {
+                console.log('DEBUG: No active alerts found, showing empty state');
                 container.style.display = 'none';
                 noAlerts.style.display = 'block';
             } else {
+                console.log('DEBUG: Displaying', alerts.length, 'active alerts');
                 container.style.display = 'block';
                 noAlerts.style.display = 'none';
                 this.renderActiveAlerts(alerts, container);
