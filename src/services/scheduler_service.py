@@ -32,9 +32,8 @@ try:
     from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
     from apscheduler.executors.pool import ThreadPoolExecutor
     APSCHEDULER_AVAILABLE = True
-    print("APScheduler debug import - All imports successful")
 except ImportError as e:
-    print(f"APScheduler debug import - Failed: {e}")
+    logger.warning(f"APScheduler import failed: {e}")
     APSCHEDULER_AVAILABLE = False
     BackgroundScheduler = None
     IntervalTrigger = None
@@ -51,6 +50,239 @@ from .alert_engine import get_alert_engine
 from .notification_service import get_notification_service
 
 logger = logging.getLogger(__name__)
+
+
+# Standalone job functions that can be pickled
+def evaluate_alert_rules_job():
+    """Standalone job function for alert rule evaluation"""
+    try:
+        logger.debug("Starting periodic alert rule evaluation")
+        
+        # Get alert engine and evaluate rules
+        alert_engine = get_alert_engine()
+        triggered_events = alert_engine.evaluate_all_rules()
+        
+        logger.info(f"Alert rule evaluation completed: {len(triggered_events)} alerts triggered")
+        
+    except Exception as e:
+        logger.error(f"Alert rule evaluation failed: {e}")
+        raise
+
+
+def cleanup_old_data_job():
+    """Standalone job function for data cleanup"""
+    try:
+        logger.debug("Starting data cleanup job")
+        
+        db = get_database()
+        
+        # Get retention settings
+        result = db.execute_query("""
+            SELECT history_retention_days, evaluation_log_retention_days
+            FROM alert_system_settings WHERE id = 1
+        """)
+        
+        if not result.rows:
+            logger.warning("No system settings found, using defaults")
+            history_retention_days = 90
+            eval_retention_days = 30
+        else:
+            settings = result.first_dict()
+            history_retention_days = settings['history_retention_days']
+            eval_retention_days = settings['evaluation_log_retention_days']
+        
+        cleanup_count = 0
+        
+        # Clean up old resolved alerts
+        history_cutoff = datetime.now(timezone.utc) - timedelta(days=history_retention_days)
+        result = db.execute_query("""
+            DELETE FROM alert_history 
+            WHERE triggered_at < %s 
+            AND status IN ('resolved', 'acknowledged')
+        """, (history_cutoff,), fetch=False)
+        cleanup_count += result.row_count
+        
+        # Clean up old evaluation logs
+        eval_cutoff = datetime.now(timezone.utc) - timedelta(days=eval_retention_days)
+        result = db.execute_query("""
+            DELETE FROM alert_rule_evaluations 
+            WHERE evaluated_at < %s
+        """, (eval_cutoff,), fetch=False)
+        cleanup_count += result.row_count
+        
+        logger.info(f"Data cleanup completed: {cleanup_count} records cleaned")
+        
+    except Exception as e:
+        logger.error(f"Data cleanup job failed: {e}")
+        raise
+
+
+def health_monitoring_job():
+    """Standalone job function for system health monitoring"""
+    try:
+        logger.debug("Starting health monitoring job")
+        
+        db = get_database()
+        config = get_config()
+        
+        # Check database health
+        db_health = db.health_check()
+        
+        # Check notification service health
+        notification_service = get_notification_service()
+        channel_status = notification_service.test_channels()
+        
+        # Check for any critical system issues
+        issues = []
+        
+        if not db_health.get('healthy', False):
+            issues.append("Database health check failed")
+        
+        failed_channels = [ch for ch, status in channel_status.items() if not status]
+        if failed_channels:
+            issues.append(f"Notification channels failed: {', '.join(failed_channels)}")
+        
+        # Check for stuck/old data
+        latest_metrics = db.get_latest_metrics()
+        if latest_metrics:
+            data_age_hours = 2
+            if 'pond_timestamp' in latest_metrics:
+                pond_age = (datetime.now(timezone.utc) - latest_metrics['pond_timestamp']).total_seconds() / 3600
+                if pond_age > data_age_hours:
+                    issues.append(f"Pond data is {pond_age:.1f} hours old")
+            
+            if 'station_timestamp' in latest_metrics:
+                station_age = (datetime.now(timezone.utc) - latest_metrics['station_timestamp']).total_seconds() / 3600
+                if station_age > data_age_hours:
+                    issues.append(f"Station data is {station_age:.1f} hours old")
+        
+        # Generate system health alert if issues found
+        if issues and config.alerting.enabled:
+            _generate_health_alert(issues)
+        
+        status = "healthy" if not issues else f"{len(issues)} issues found"
+        logger.info(f"Health monitoring completed: {status}")
+        
+    except Exception as e:
+        logger.error(f"Health monitoring job failed: {e}")
+        raise
+
+
+def generate_daily_summary_job():
+    """Standalone job function for daily summary generation"""
+    try:
+        logger.debug("Starting daily summary generation")
+        
+        config = get_config()
+        if not config.alerting.enabled or not config.alerting.email_enabled:
+            logger.info("Daily summary skipped - alerting not configured")
+            return
+        
+        # Generate summary data (simplified version)
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(hours=24)
+        
+        db = get_database()
+        
+        # Get alert statistics
+        alert_stats = db.execute_query("""
+            SELECT 
+                COUNT(*) as total_alerts,
+                COUNT(*) FILTER (WHERE severity = 'critical') as critical_alerts,
+                COUNT(*) FILTER (WHERE severity = 'warning') as warning_alerts,
+                COUNT(*) FILTER (WHERE status = 'active') as active_alerts,
+                COUNT(*) FILTER (WHERE status = 'resolved') as resolved_alerts
+            FROM alert_history
+            WHERE triggered_at BETWEEN %s AND %s
+        """, (start_time, end_time)).first_dict()
+        
+        # Create notification message
+        from .notification_service import NotificationMessage
+        
+        message = NotificationMessage(
+            title="PondMonitor Daily Summary",
+            message=f"Daily summary: {alert_stats['total_alerts']} alerts, {alert_stats['active_alerts']} active",
+            severity="info",
+            timestamp=datetime.now(timezone.utc),
+            include_chart=True
+        )
+        
+        # Send to email channel only
+        notification_service = get_notification_service()
+        import asyncio
+        asyncio.run(notification_service.send_alert(message, channels=['email']))
+        
+        logger.info("Daily summary generated and sent")
+        
+    except Exception as e:
+        logger.error(f"Daily summary generation failed: {e}")
+        raise
+
+
+def retry_failed_notifications_job():
+    """Standalone job function for notification retry"""
+    try:
+        logger.debug("Starting notification retry job")
+        
+        db = get_database()
+        
+        # Find alerts with failed notifications from last hour
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        
+        result = db.execute_query("""
+            SELECT id, rule_id, severity, metric_type, station_id, triggered_at,
+                   trigger_value, threshold_value, message, notifications_sent
+            FROM alert_history
+            WHERE triggered_at > %s
+            AND status = 'active'
+            AND notifications_sent IS NOT NULL
+        """, (cutoff_time,))
+        
+        retry_count = 0
+        
+        for row_dict in result.to_dict_list():
+            notifications = row_dict['notifications_sent']
+            if isinstance(notifications, str):
+                import json
+                notifications = json.loads(notifications)
+            
+            # Check for failed notifications
+            failed_channels = []
+            for notification in notifications:
+                if not notification.get('success', True):
+                    failed_channels.append(notification['channel'])
+            
+            if failed_channels:
+                # Retry failed notifications (simplified)
+                retry_count += 1
+                logger.info(f"Would retry notifications for alert {row_dict['id']}")
+        
+        logger.info(f"Notification retry completed: {retry_count} alerts processed")
+        
+    except Exception as e:
+        logger.error(f"Notification retry job failed: {e}")
+        raise
+
+
+def _generate_health_alert(issues: List[str]):
+    """Generate system health alert"""
+    try:
+        from .notification_service import NotificationMessage
+        
+        message = NotificationMessage(
+            title="System Health Alert",
+            message=f"System health issues detected:\n• " + "\n• ".join(issues),
+            severity="warning",
+            timestamp=datetime.now(timezone.utc),
+            include_chart=False
+        )
+        
+        notification_service = get_notification_service()
+        import asyncio
+        asyncio.run(notification_service.send_alert(message))
+        
+    except Exception as e:
+        logger.error(f"Failed to send health alert: {e}")
 
 
 @dataclass
@@ -587,9 +819,17 @@ class SchedulerService:
     def _add_scheduled_jobs(self):
         """Add all scheduled jobs to the scheduler"""
         
+        # Clear any existing jobs to avoid duplicates
+        try:
+            for job in self.scheduler.get_jobs():
+                self.scheduler.remove_job(job.id)
+            logger.info("Cleared existing scheduled jobs")
+        except Exception as e:
+            logger.warning(f"Failed to clear existing jobs: {e}")
+        
         # Alert rule evaluation - every minute
         self.scheduler.add_job(
-            func=self.jobs.evaluate_alert_rules,
+            func=evaluate_alert_rules_job,
             trigger=IntervalTrigger(seconds=60),
             id='evaluate_alert_rules',
             name='Evaluate Alert Rules',
@@ -598,7 +838,7 @@ class SchedulerService:
         
         # Data cleanup - daily at 2:00 AM
         self.scheduler.add_job(
-            func=self.jobs.cleanup_old_data,
+            func=cleanup_old_data_job,
             trigger=CronTrigger(hour=2, minute=0),
             id='cleanup_old_data',
             name='Clean Up Old Data',
@@ -607,7 +847,7 @@ class SchedulerService:
         
         # Health monitoring - every 5 minutes
         self.scheduler.add_job(
-            func=self.jobs.health_monitoring,
+            func=health_monitoring_job,
             trigger=IntervalTrigger(minutes=5),
             id='health_monitoring',
             name='System Health Monitoring',
@@ -616,7 +856,7 @@ class SchedulerService:
         
         # Daily summary - daily at 8:00 AM
         self.scheduler.add_job(
-            func=self.jobs.generate_daily_summary,
+            func=generate_daily_summary_job,
             trigger=CronTrigger(hour=8, minute=0),
             id='daily_summary',
             name='Generate Daily Summary',
@@ -625,7 +865,7 @@ class SchedulerService:
         
         # Retry failed notifications - every 10 minutes
         self.scheduler.add_job(
-            func=self.jobs.retry_failed_notifications,
+            func=retry_failed_notifications_job,
             trigger=IntervalTrigger(minutes=10),
             id='retry_notifications',
             name='Retry Failed Notifications',
