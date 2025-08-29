@@ -83,9 +83,23 @@ def create_app(config_file: str = ".env") -> Flask:
     logger.info("Initializing services")
     
     try:
-        # Database service
-        db_service = init_database(config.database)
-        logger.info("✅ Database service initialized")
+        # Database service with retry mechanism
+        max_retries = 5
+        retry_delay = 5
+        for attempt in range(max_retries):
+            try:
+                db_service = init_database(config.database)
+                logger.info("✅ Database service initialized")
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    import time
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"Database connection failed after {max_retries} attempts: {e}")
+                    raise
         
         # Export service
         export_service = create_export_service(db_service)

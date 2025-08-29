@@ -32,7 +32,9 @@ try:
     from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
     from apscheduler.executors.pool import ThreadPoolExecutor
     APSCHEDULER_AVAILABLE = True
-except ImportError:
+    print("APScheduler debug import - All imports successful")
+except ImportError as e:
+    print(f"APScheduler debug import - Failed: {e}")
     APSCHEDULER_AVAILABLE = False
     BackgroundScheduler = None
     IntervalTrigger = None
@@ -507,9 +509,16 @@ class SchedulerService:
             return
             
         try:
-            # Configure job store (SQLAlchemy)
-            db_url = self.config.database.get_connection_string()
-            jobstore = SQLAlchemyJobStore(url=db_url, tablename='scheduler_jobs')
+            # Configure job store - try SQLAlchemy first, fallback to memory
+            jobstore = None
+            try:
+                db_url = self.config.database.get_connection_string()
+                jobstore = SQLAlchemyJobStore(url=db_url, tablename='scheduler_jobs')
+                logger.info("Using SQLAlchemy job store for persistence")
+            except Exception as e:
+                logger.warning(f"Failed to create SQLAlchemy job store: {e}")
+                logger.info("Using memory job store (jobs will not persist across restarts)")
+                # Memory jobstore is the default, so we don't need to specify it
             
             # Configure executor
             executor = ThreadPoolExecutor(max_workers=4)
@@ -521,12 +530,20 @@ class SchedulerService:
                 'misfire_grace_time': 30  # Grace period for missed jobs
             }
             
-            self.scheduler = BackgroundScheduler(
-                jobstores={'default': jobstore},
-                executors={'default': executor},
-                job_defaults=job_defaults,
-                timezone='UTC'
-            )
+            # Create scheduler with or without persistent jobstore
+            if jobstore:
+                self.scheduler = BackgroundScheduler(
+                    jobstores={'default': jobstore},
+                    executors={'default': executor},
+                    job_defaults=job_defaults,
+                    timezone='UTC'
+                )
+            else:
+                self.scheduler = BackgroundScheduler(
+                    executors={'default': executor},
+                    job_defaults=job_defaults,
+                    timezone='UTC'
+                )
             
             # Add event listeners
             self.scheduler.add_listener(self._job_executed, EVENT_JOB_EXECUTED)
@@ -542,19 +559,26 @@ class SchedulerService:
     def start(self):
         """Start the scheduler and add jobs"""
         try:
+            if not APSCHEDULER_AVAILABLE:
+                logger.warning("APScheduler not available, scheduler will not run")
+                return
+                
             if not self.scheduler:
                 self.initialize()
             
-            self.scheduler.start()
-            self._running = True
-            
-            # Add scheduled jobs
-            self._add_scheduled_jobs()
-            
-            # Register shutdown handler
-            atexit.register(self.shutdown)
-            
-            logger.info("Scheduler started successfully")
+            if self.scheduler:
+                self.scheduler.start()
+                self._running = True
+                
+                # Add scheduled jobs
+                self._add_scheduled_jobs()
+                
+                # Register shutdown handler
+                atexit.register(self.shutdown)
+                
+                logger.info("Scheduler started successfully")
+            else:
+                logger.warning("Scheduler not initialized, skipping start")
             
         except Exception as e:
             logger.error(f"Failed to start scheduler: {e}")
