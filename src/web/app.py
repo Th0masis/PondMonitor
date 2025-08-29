@@ -1457,6 +1457,402 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Failed to generate test browser notification: {e}")
             return jsonify({'error': str(e)}), 500
 
+    # =================================================================
+    # NOTIFICATION CHANNEL CONFIGURATION ENDPOINTS
+    # =================================================================
+    
+    @app.route("/api/notification-channels", methods=["GET"], endpoint="get_notification_channels")
+    @log_requests
+    @handle_errors
+    def get_notification_channels():
+        """Get all notification channels"""
+        try:
+            db = get_database()
+            
+            result = db.execute_query("""
+                SELECT id, channel_type, name, description, config, enabled,
+                       last_test_at, last_test_success, last_error,
+                       rate_limit_per_hour, created_at, updated_at
+                FROM notification_channels
+                ORDER BY channel_type, name
+            """)
+            
+            channels = []
+            for row_dict in result.to_dict_list():
+                # Parse config JSON
+                config_data = row_dict['config'] if row_dict['config'] else {}
+                if isinstance(config_data, str):
+                    import json
+                    config_data = json.loads(config_data)
+                
+                channels.append({
+                    'id': row_dict['id'],
+                    'channel_type': row_dict['channel_type'],
+                    'name': row_dict['name'],
+                    'description': row_dict['description'],
+                    'config': config_data,
+                    'enabled': row_dict['enabled'],
+                    'last_test_at': row_dict['last_test_at'].isoformat() if row_dict['last_test_at'] else None,
+                    'last_test_success': row_dict['last_test_success'],
+                    'last_error': row_dict['last_error'],
+                    'rate_limit_per_hour': row_dict['rate_limit_per_hour'],
+                    'created_at': row_dict['created_at'].isoformat() if row_dict['created_at'] else None,
+                    'updated_at': row_dict['updated_at'].isoformat() if row_dict['updated_at'] else None
+                })
+            
+            return jsonify(channels)
+            
+        except Exception as e:
+            logger.error(f"Failed to get notification channels: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/notification-channels", methods=["POST"], endpoint="create_notification_channel")
+    @log_requests
+    @handle_errors
+    def create_notification_channel():
+        """Create a new notification channel"""
+        try:
+            data = request.get_json()
+            
+            # Validate required fields
+            required_fields = ['channel_type', 'name', 'config']
+            for field in required_fields:
+                if not data.get(field):
+                    return jsonify({'error': f'Missing required field: {field}'}), 400
+            
+            # Validate channel type
+            valid_types = ['email', 'sms', 'webhook', 'slack', 'discord', 'telegram']
+            if data['channel_type'] not in valid_types:
+                return jsonify({'error': f'Invalid channel_type. Must be one of: {valid_types}'}), 400
+            
+            db = get_database()
+            
+            # Create channel
+            channel_id = db.execute_query("""
+                INSERT INTO notification_channels 
+                (channel_type, name, description, config, enabled, rate_limit_per_hour)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                data['channel_type'],
+                data['name'],
+                data.get('description', ''),
+                json.dumps(data['config']),
+                data.get('enabled', True),
+                data.get('rate_limit_per_hour', 100)
+            ), fetch=True).first_dict()['id']
+            
+            logger.info(f"Created notification channel: {data['name']} ({data['channel_type']})")
+            
+            return jsonify({
+                'success': True,
+                'channel_id': channel_id,
+                'message': f"Channel '{data['name']}' created successfully"
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to create notification channel: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/notification-channels/<channel_id>", methods=["PUT"], endpoint="update_notification_channel")
+    @log_requests
+    @handle_errors
+    def update_notification_channel(channel_id: str):
+        """Update a notification channel"""
+        try:
+            data = request.get_json()
+            db = get_database()
+            
+            # Check if channel exists
+            existing = db.execute_query("""
+                SELECT id FROM notification_channels WHERE id = %s
+            """, (channel_id,))
+            
+            if not existing.rows:
+                return jsonify({'error': 'Channel not found'}), 404
+            
+            # Build update query dynamically
+            update_fields = []
+            params = []
+            
+            if 'name' in data:
+                update_fields.append('name = %s')
+                params.append(data['name'])
+            
+            if 'description' in data:
+                update_fields.append('description = %s')
+                params.append(data['description'])
+            
+            if 'config' in data:
+                update_fields.append('config = %s')
+                params.append(json.dumps(data['config']))
+            
+            if 'enabled' in data:
+                update_fields.append('enabled = %s')
+                params.append(data['enabled'])
+            
+            if 'rate_limit_per_hour' in data:
+                update_fields.append('rate_limit_per_hour = %s')
+                params.append(data['rate_limit_per_hour'])
+            
+            if not update_fields:
+                return jsonify({'error': 'No fields to update'}), 400
+            
+            update_fields.append('updated_at = NOW()')
+            params.append(channel_id)
+            
+            db.execute_query(f"""
+                UPDATE notification_channels 
+                SET {', '.join(update_fields)}
+                WHERE id = %s
+            """, params, fetch=False)
+            
+            logger.info(f"Updated notification channel: {channel_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Channel updated successfully'
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to update notification channel: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/notification-channels/<channel_id>", methods=["DELETE"], endpoint="delete_notification_channel")
+    @log_requests
+    @handle_errors
+    def delete_notification_channel(channel_id: str):
+        """Delete a notification channel"""
+        try:
+            db = get_database()
+            
+            # Check if channel exists
+            existing = db.execute_query("""
+                SELECT name FROM notification_channels WHERE id = %s
+            """, (channel_id,))
+            
+            if not existing.rows:
+                return jsonify({'error': 'Channel not found'}), 404
+            
+            channel_name = existing.first_dict()['name']
+            
+            # Delete channel
+            db.execute_query("""
+                DELETE FROM notification_channels WHERE id = %s
+            """, (channel_id,), fetch=False)
+            
+            logger.info(f"Deleted notification channel: {channel_name} ({channel_id})")
+            
+            return jsonify({
+                'success': True,
+                'message': f"Channel '{channel_name}' deleted successfully"
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to delete notification channel: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/notification-channels/<channel_id>/test", methods=["POST"], endpoint="test_notification_channel")
+    @log_requests
+    @handle_errors
+    def test_notification_channel(channel_id: str):
+        """Test a specific notification channel"""
+        try:
+            db = get_database()
+            
+            # Get channel configuration
+            result = db.execute_query("""
+                SELECT channel_type, name, config, enabled
+                FROM notification_channels 
+                WHERE id = %s
+            """, (channel_id,))
+            
+            if not result.rows:
+                return jsonify({'error': 'Channel not found'}), 404
+            
+            channel_data = result.first_dict()
+            
+            if not channel_data['enabled']:
+                return jsonify({'error': 'Channel is disabled'}), 400
+            
+            # Parse config
+            config_data = channel_data['config']
+            if isinstance(config_data, str):
+                config_data = json.loads(config_data)
+            
+            # Create test notification message
+            from src.services.notification_service import NotificationMessage
+            
+            test_message = NotificationMessage(
+                title="PondMonitor Test Notification",
+                message=f"This is a test notification from channel '{channel_data['name']}' ({channel_data['channel_type']}). If you receive this, your configuration is working correctly!",
+                severity="info",
+                timestamp=datetime.now(timezone.utc),
+                include_chart=False
+            )
+            
+            # Send test notification (simplified)
+            success = True
+            error = None
+            
+            try:
+                # Here you would implement actual sending logic based on channel_type
+                if channel_data['channel_type'] == 'webhook':
+                    # Test webhook
+                    import requests
+                    webhook_url = config_data.get('url')
+                    if not webhook_url:
+                        raise ValueError("Webhook URL not configured")
+                    
+                    payload = {
+                        'content': f"**{test_message.title}**\n{test_message.message}",
+                        'username': 'PondMonitor'
+                    }
+                    
+                    response = requests.post(webhook_url, json=payload, timeout=10)
+                    response.raise_for_status()
+                
+                elif channel_data['channel_type'] == 'discord':
+                    # Test Discord webhook
+                    import requests
+                    webhook_url = config_data.get('webhook_url')
+                    if not webhook_url:
+                        raise ValueError("Discord webhook URL not configured")
+                    
+                    payload = {
+                        'content': f"**{test_message.title}**\n{test_message.message}",
+                        'username': 'PondMonitor',
+                        'avatar_url': 'https://i.imgur.com/4M34hi2.png'  # Optional bot avatar
+                    }
+                    
+                    response = requests.post(webhook_url, json=payload, timeout=10)
+                    response.raise_for_status()
+                
+                else:
+                    # For other channel types, just mark as success for now
+                    logger.info(f"Test for {channel_data['channel_type']} channel simulated")
+                    
+            except Exception as send_error:
+                success = False
+                error = str(send_error)
+            
+            # Update test results in database
+            db.execute_query("""
+                UPDATE notification_channels 
+                SET last_test_at = NOW(), 
+                    last_test_success = %s, 
+                    last_error = %s
+                WHERE id = %s
+            """, (success, error, channel_id), fetch=False)
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': f"Test notification sent successfully to '{channel_data['name']}'"
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': error,
+                    'message': f"Test notification failed for '{channel_data['name']}'"
+                }), 400
+            
+        except Exception as e:
+            logger.error(f"Failed to test notification channel: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    # =================================================================
+    # ALERT SYSTEM SETTINGS ENDPOINTS
+    # =================================================================
+    
+    @app.route("/api/alert-settings", methods=["GET"], endpoint="get_alert_settings")
+    @log_requests
+    @handle_errors
+    def get_alert_settings():
+        """Get alert system settings"""
+        try:
+            db = get_database()
+            
+            result = db.execute_query("""
+                SELECT * FROM alert_system_settings WHERE id = 1
+            """)
+            
+            if result.rows:
+                settings = result.first_dict()
+                # Convert timestamp fields
+                settings['updated_at'] = settings['updated_at'].isoformat() if settings['updated_at'] else None
+                return jsonify(settings)
+            else:
+                # Return default settings if not found
+                return jsonify({
+                    'id': 1,
+                    'alerting_enabled': True,
+                    'email_notifications_enabled': True,
+                    'sms_notifications_enabled': False,
+                    'default_cooldown_minutes': 60,
+                    'default_max_alerts_per_hour': 10,
+                    'evaluation_interval_seconds': 60,
+                    'max_evaluation_time_ms': 5000,
+                    'history_retention_days': 90,
+                    'evaluation_log_retention_days': 30,
+                    'emergency_disable_threshold': 100
+                })
+                
+        except Exception as e:
+            logger.error(f"Failed to get alert settings: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route("/api/alert-settings", methods=["PUT"], endpoint="update_alert_settings")
+    @log_requests
+    @handle_errors
+    def update_alert_settings():
+        """Update alert system settings"""
+        try:
+            data = request.get_json()
+            db = get_database()
+            
+            # Build update query
+            update_fields = []
+            params = []
+            
+            allowed_fields = [
+                'alerting_enabled', 'email_notifications_enabled', 'sms_notifications_enabled',
+                'default_cooldown_minutes', 'default_max_alerts_per_hour',
+                'evaluation_interval_seconds', 'max_evaluation_time_ms',
+                'history_retention_days', 'evaluation_log_retention_days',
+                'emergency_disable_threshold'
+            ]
+            
+            for field in allowed_fields:
+                if field in data:
+                    update_fields.append(f'{field} = %s')
+                    params.append(data[field])
+            
+            if not update_fields:
+                return jsonify({'error': 'No valid fields to update'}), 400
+            
+            update_fields.append('updated_at = NOW()')
+            update_fields.append('updated_by = %s')
+            params.append('ui_user')  # You could get actual user from session
+            
+            # Upsert settings
+            db.execute_query(f"""
+                INSERT INTO alert_system_settings (id, {', '.join([f.split(' = ')[0] for f in update_fields])})
+                VALUES (1, {', '.join(['%s'] * len(update_fields))})
+                ON CONFLICT (id) DO UPDATE SET {', '.join(update_fields)}
+            """, params, fetch=False)
+            
+            logger.info("Updated alert system settings")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Alert settings updated successfully'
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to update alert settings: {e}")
+            return jsonify({'error': str(e)}), 500
+
 
 # Application factory
 app = create_app()

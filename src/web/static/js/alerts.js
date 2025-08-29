@@ -125,6 +125,28 @@ class AlertManager {
         document.getElementById('ruleMetricType')?.addEventListener('change', () => {
             this.updateConditionFields();
         });
+        
+        // Channel management event listeners
+        document.getElementById('addChannelBtn')?.addEventListener('click', () => {
+            this.showChannelModal();
+        });
+        
+        document.getElementById('channelType')?.addEventListener('change', () => {
+            this.updateChannelConfigFields();
+        });
+        
+        document.getElementById('channelForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveChannel();
+        });
+        
+        document.getElementById('cancelChannelEdit')?.addEventListener('click', () => {
+            this.hideModal(document.getElementById('channelModal'));
+        });
+        
+        document.getElementById('testChannelBtn')?.addEventListener('click', () => {
+            this.testCurrentChannel();
+        });
     }
     
     setupTabNavigation() {
@@ -330,6 +352,8 @@ class AlertManager {
                 break;
             case 'notifications':
                 await this.loadNotificationStatus();
+                await this.loadNotificationChannels();
+                await this.loadAlertSettings();
                 break;
         }
     }
@@ -1535,6 +1559,468 @@ class AlertManager {
                 notification.remove();
             }
         }, 5000);
+    }
+    
+    // Channel Management Methods
+    async loadNotificationChannels() {
+        try {
+            const response = await fetch('/api/notification-channels');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const channels = await response.json();
+            this.displayNotificationChannels(channels);
+        } catch (error) {
+            console.error('Error loading notification channels:', error);
+            this.showNotification('Failed to load notification channels', 'error');
+        }
+    }
+    
+    displayNotificationChannels(channels) {
+        const container = document.getElementById('channelsList');
+        if (!container) return;
+        
+        if (channels.length === 0) {
+            container.innerHTML = '<p class="text-muted">No notification channels configured</p>';
+            return;
+        }
+        
+        const channelsHtml = channels.map(channel => `
+            <div class="channel-item" data-channel-id="${channel.id}">
+                <div class="channel-info">
+                    <div class="channel-header">
+                        <span class="channel-type">${this.getChannelTypeIcon(channel.type)} ${channel.type.toUpperCase()}</span>
+                        <span class="channel-status ${channel.enabled ? 'enabled' : 'disabled'}">
+                            ${channel.enabled ? '✅ Enabled' : '⏸️ Disabled'}
+                        </span>
+                    </div>
+                    <div class="channel-name">${channel.name}</div>
+                    ${channel.description ? `<div class="channel-description">${channel.description}</div>` : ''}
+                </div>
+                <div class="channel-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="alertManager.testNotificationChannel('${channel.id}')">
+                        Test
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="alertManager.editNotificationChannel('${channel.id}')">
+                        Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="alertManager.deleteNotificationChannel('${channel.id}')">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = channelsHtml;
+    }
+    
+    getChannelTypeIcon(type) {
+        switch (type) {
+            case 'discord': return '💬';
+            case 'email': return '📧';
+            case 'webhook': return '🔗';
+            case 'telegram': return '📱';
+            default: return '📢';
+        }
+    }
+    
+    showChannelModal(channelId = null) {
+        const modal = document.getElementById('channelModal');
+        const form = document.getElementById('channelForm');
+        const title = document.getElementById('channelModalTitle');
+        
+        if (channelId) {
+            title.textContent = 'Edit Notification Channel';
+            this.loadChannelForEditing(channelId);
+        } else {
+            title.textContent = 'Add Notification Channel';
+            form.reset();
+            this.updateChannelConfigFields();
+        }
+        
+        modal.style.display = 'flex';
+    }
+    
+    async loadChannelForEditing(channelId) {
+        try {
+            const response = await fetch(`/api/notification-channels/${channelId}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const channel = await response.json();
+            this.populateChannelForm(channel);
+        } catch (error) {
+            console.error('Error loading channel for editing:', error);
+            this.showNotification('Failed to load channel details', 'error');
+        }
+    }
+    
+    populateChannelForm(channel) {
+        document.getElementById('channelId').value = channel.id || '';
+        document.getElementById('channelName').value = channel.name || '';
+        document.getElementById('channelType').value = channel.type || '';
+        document.getElementById('channelDescription').value = channel.description || '';
+        document.getElementById('channelEnabled').checked = channel.enabled !== false;
+        
+        // Store config for updateChannelConfigFields to use
+        this.currentChannelConfig = channel.config || {};
+        this.updateChannelConfigFields();
+    }
+    
+    updateChannelConfigFields() {
+        const channelType = document.getElementById('channelType').value;
+        const container = document.getElementById('channelConfigFields');
+        
+        if (!channelType) {
+            container.innerHTML = '<p class="text-muted">Select a channel type to configure</p>';
+            return;
+        }
+        
+        let fieldsHtml = '';
+        const config = this.currentChannelConfig || {};
+        
+        switch (channelType) {
+            case 'discord':
+                fieldsHtml = `
+                    <div class="form-group">
+                        <label for="discordWebhookUrl">Discord Webhook URL *</label>
+                        <input type="url" id="discordWebhookUrl" name="webhook_url" 
+                               value="${config.webhook_url || ''}" required
+                               placeholder="https://discord.com/api/webhooks/...">
+                        <small class="form-text text-muted">
+                            Get webhook URL from Discord server settings → Integrations → Webhooks
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="discordUsername">Bot Username</label>
+                        <input type="text" id="discordUsername" name="username" 
+                               value="${config.username || 'PondMonitor'}"
+                               placeholder="PondMonitor">
+                    </div>
+                    <div class="form-group">
+                        <label for="discordAvatarUrl">Avatar URL</label>
+                        <input type="url" id="discordAvatarUrl" name="avatar_url" 
+                               value="${config.avatar_url || ''}"
+                               placeholder="https://example.com/avatar.png">
+                    </div>
+                `;
+                break;
+                
+            case 'email':
+                fieldsHtml = `
+                    <div class="form-group">
+                        <label for="emailRecipients">Recipients *</label>
+                        <input type="text" id="emailRecipients" name="recipients" 
+                               value="${config.recipients || ''}" required
+                               placeholder="user@example.com, admin@example.com">
+                        <small class="form-text text-muted">
+                            Comma-separated list of email addresses
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="emailSubjectPrefix">Subject Prefix</label>
+                        <input type="text" id="emailSubjectPrefix" name="subject_prefix" 
+                               value="${config.subject_prefix || '[PondMonitor Alert]'}"
+                               placeholder="[PondMonitor Alert]">
+                    </div>
+                `;
+                break;
+                
+            case 'webhook':
+                fieldsHtml = `
+                    <div class="form-group">
+                        <label for="webhookUrl">Webhook URL *</label>
+                        <input type="url" id="webhookUrl" name="url" 
+                               value="${config.url || ''}" required
+                               placeholder="https://api.example.com/webhook">
+                    </div>
+                    <div class="form-group">
+                        <label for="webhookMethod">HTTP Method</label>
+                        <select id="webhookMethod" name="method">
+                            <option value="POST" ${config.method === 'POST' ? 'selected' : ''}>POST</option>
+                            <option value="PUT" ${config.method === 'PUT' ? 'selected' : ''}>PUT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="webhookHeaders">Custom Headers</label>
+                        <textarea id="webhookHeaders" name="headers" rows="3"
+                                  placeholder="Authorization: Bearer token123&#10;Content-Type: application/json">${config.headers || ''}</textarea>
+                        <small class="form-text text-muted">
+                            One header per line in format: Header-Name: value
+                        </small>
+                    </div>
+                `;
+                break;
+                
+            case 'telegram':
+                fieldsHtml = `
+                    <div class="form-group">
+                        <label for="telegramBotToken">Bot Token *</label>
+                        <input type="text" id="telegramBotToken" name="bot_token" 
+                               value="${config.bot_token || ''}" required
+                               placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                    </div>
+                    <div class="form-group">
+                        <label for="telegramChatId">Chat ID *</label>
+                        <input type="text" id="telegramChatId" name="chat_id" 
+                               value="${config.chat_id || ''}" required
+                               placeholder="-1001234567890">
+                        <small class="form-text text-muted">
+                            Use @userinfobot to get chat ID
+                        </small>
+                    </div>
+                `;
+                break;
+        }
+        
+        container.innerHTML = fieldsHtml;
+    }
+    
+    async saveChannel() {
+        const form = document.getElementById('channelForm');
+        const formData = new FormData(form);
+        const channelId = formData.get('id');
+        
+        // Build config object from form fields
+        const config = {};
+        const channelType = formData.get('type');
+        
+        switch (channelType) {
+            case 'discord':
+                config.webhook_url = formData.get('webhook_url');
+                config.username = formData.get('username') || 'PondMonitor';
+                if (formData.get('avatar_url')) config.avatar_url = formData.get('avatar_url');
+                break;
+            case 'email':
+                config.recipients = formData.get('recipients');
+                config.subject_prefix = formData.get('subject_prefix') || '[PondMonitor Alert]';
+                break;
+            case 'webhook':
+                config.url = formData.get('url');
+                config.method = formData.get('method') || 'POST';
+                if (formData.get('headers')) {
+                    config.headers = formData.get('headers');
+                }
+                break;
+            case 'telegram':
+                config.bot_token = formData.get('bot_token');
+                config.chat_id = formData.get('chat_id');
+                break;
+        }
+        
+        const channelData = {
+            name: formData.get('name'),
+            type: channelType,
+            description: formData.get('description') || '',
+            enabled: formData.get('enabled') === 'on',
+            config: config
+        };
+        
+        try {
+            const url = channelId ? `/api/notification-channels/${channelId}` : '/api/notification-channels';
+            const method = channelId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(channelData)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || `HTTP ${response.status}`);
+            }
+            
+            this.showNotification(
+                channelId ? 'Channel updated successfully' : 'Channel created successfully',
+                'success'
+            );
+            
+            this.closeChannelModal();
+            await this.loadNotificationChannels();
+            
+        } catch (error) {
+            console.error('Error saving channel:', error);
+            this.showNotification(`Failed to save channel: ${error.message}`, 'error');
+        }
+    }
+    
+    closeChannelModal() {
+        const modal = document.getElementById('channelModal');
+        modal.style.display = 'none';
+        this.currentChannelConfig = null;
+    }
+    
+    editNotificationChannel(channelId) {
+        this.showChannelModal(channelId);
+    }
+    
+    async deleteNotificationChannel(channelId) {
+        if (!confirm('Are you sure you want to delete this notification channel?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/notification-channels/${channelId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || `HTTP ${response.status}`);
+            }
+            
+            this.showNotification('Channel deleted successfully', 'success');
+            await this.loadNotificationChannels();
+            
+        } catch (error) {
+            console.error('Error deleting channel:', error);
+            this.showNotification(`Failed to delete channel: ${error.message}`, 'error');
+        }
+    }
+    
+    async testNotificationChannel(channelId) {
+        try {
+            const response = await fetch(`/api/notification-channels/${channelId}/test`, {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || `HTTP ${response.status}`);
+            }
+            
+            const result = await response.json();
+            this.showNotification('Test notification sent successfully', 'success');
+            
+        } catch (error) {
+            console.error('Error testing channel:', error);
+            this.showNotification(`Test failed: ${error.message}`, 'error');
+        }
+    }
+    
+    testCurrentChannel() {
+        const form = document.getElementById('channelForm');
+        const formData = new FormData(form);
+        
+        // Build temporary channel object for testing
+        const config = {};
+        const channelType = formData.get('type');
+        
+        switch (channelType) {
+            case 'discord':
+                config.webhook_url = formData.get('webhook_url');
+                config.username = formData.get('username') || 'PondMonitor';
+                if (formData.get('avatar_url')) config.avatar_url = formData.get('avatar_url');
+                break;
+            case 'email':
+                config.recipients = formData.get('recipients');
+                config.subject_prefix = formData.get('subject_prefix') || '[PondMonitor Alert]';
+                break;
+            case 'webhook':
+                config.url = formData.get('url');
+                config.method = formData.get('method') || 'POST';
+                if (formData.get('headers')) {
+                    config.headers = formData.get('headers');
+                }
+                break;
+            case 'telegram':
+                config.bot_token = formData.get('bot_token');
+                config.chat_id = formData.get('chat_id');
+                break;
+        }
+        
+        const testData = {
+            type: channelType,
+            config: config
+        };
+        
+        fetch('/api/notification-channels/test-config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(testData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
+        .then(result => {
+            this.showNotification('Test notification sent successfully', 'success');
+        })
+        .catch(error => {
+            console.error('Error testing channel config:', error);
+            this.showNotification(`Test failed: ${error.message || 'Unknown error'}`, 'error');
+        });
+    }
+    
+    async loadAlertSettings() {
+        try {
+            const response = await fetch('/api/alert-settings');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const settings = await response.json();
+            this.displayAlertSettings(settings);
+        } catch (error) {
+            console.error('Error loading alert settings:', error);
+            this.showNotification('Failed to load alert settings', 'error');
+        }
+    }
+    
+    displayAlertSettings(settings) {
+        const form = document.getElementById('alertSettingsForm');
+        if (!form) return;
+        
+        // Populate form fields
+        Object.keys(settings).forEach(key => {
+            const field = form.querySelector(`[name="${key}"]`);
+            if (field) {
+                if (field.type === 'checkbox') {
+                    field.checked = settings[key];
+                } else {
+                    field.value = settings[key];
+                }
+            }
+        });
+    }
+    
+    async saveAlertSettings() {
+        const form = document.getElementById('alertSettingsForm');
+        const formData = new FormData(form);
+        
+        const settings = {};
+        for (let [key, value] of formData.entries()) {
+            // Convert checkbox values
+            if (form.querySelector(`[name="${key}"]`).type === 'checkbox') {
+                settings[key] = value === 'on';
+            } else {
+                settings[key] = value;
+            }
+        }
+        
+        try {
+            const response = await fetch('/api/alert-settings', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(settings)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || `HTTP ${response.status}`);
+            }
+            
+            this.showNotification('Alert settings saved successfully', 'success');
+            
+        } catch (error) {
+            console.error('Error saving alert settings:', error);
+            this.showNotification(`Failed to save settings: ${error.message}`, 'error');
+        }
     }
     
     // Cleanup

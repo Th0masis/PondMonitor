@@ -229,48 +229,32 @@
                     </div>
                 </div>
                 
-                <!-- Configuration Help -->
-                <div class="config-help" style="margin-top: 20px; padding: 15px; background: var(--bg-tertiary); border-radius: 8px; border-left: 4px solid var(--color-blue);">
-                    <h4 style="margin-top: 0; color: var(--color-blue);">⚙️ Konfigurace kanálů</h4>
-                    <p style="margin: 10px 0; color: var(--text-secondary);">Pro aktivaci notifikačních kanálů je třeba nastavit následující proměnné prostředí:</p>
+                <!-- Channel Management Section -->
+                <div class="channel-management-section">
+                    <div class="section-header">
+                        <h4>⚙️ Správa notifikačních kanálů</h4>
+                        <button id="addChannelBtn" class="btn btn-primary">
+                            <span class="icon">➕</span> Přidat kanál
+                        </button>
+                    </div>
                     
-                    <div class="config-section" style="margin: 15px 0;">
-                        <h5 style="color: var(--text-primary); margin-bottom: 8px;">📧 Email</h5>
-                        <div style="font-family: monospace; font-size: 12px; background: var(--bg-secondary); padding: 10px; border-radius: 4px; color: var(--text-secondary);">
-                            ALERTING_EMAIL_ENABLED=true<br>
-                            ALERTING_SMTP_SERVER=smtp.gmail.com<br>
-                            ALERTING_SMTP_PORT=587<br>
-                            ALERTING_SMTP_USERNAME=váš@email.com<br>
-                            ALERTING_SMTP_PASSWORD=heslo_aplikace<br>
-                            ALERTING_EMAIL_TO=příjemce@email.com
+                    <!-- Channels List -->
+                    <div id="channelsList" class="channels-list">
+                        <div class="loading" id="channelsLoading">
+                            <div class="spinner"></div>
+                            <span>Načítám kanály...</span>
                         </div>
                     </div>
                     
-                    <div class="config-section" style="margin: 15px 0;">
-                        <h5 style="color: var(--text-primary); margin-bottom: 8px;">💬 Telegram</h5>
-                        <div style="font-family: monospace; font-size: 12px; background: var(--bg-secondary); padding: 10px; border-radius: 4px; color: var(--text-secondary);">
-                            ALERTING_TELEGRAM_ENABLED=true<br>
-                            ALERTING_TELEGRAM_BOT_TOKEN=1234567890:ABCDEF...<br>
-                            ALERTING_TELEGRAM_CHAT_ID=-1001234567890
+                    <!-- Global Alert Settings -->
+                    <div class="alert-settings-section" style="margin-top: 30px;">
+                        <h4>🔧 Globální nastavení upozornění</h4>
+                        <div id="alertSettingsContainer">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <span>Načítám nastavení...</span>
+                            </div>
                         </div>
-                        <small style="color: var(--text-secondary); font-style: italic;">
-                            Bot token získáte od @BotFather, Chat ID z @userinfobot
-                        </small>
-                    </div>
-                    
-                    <div class="config-section" style="margin: 15px 0;">
-                        <h5 style="color: var(--text-primary); margin-bottom: 8px;">🎮 Discord</h5>
-                        <div style="font-family: monospace; font-size: 12px; background: var(--bg-secondary); padding: 10px; border-radius: 4px; color: var(--text-secondary);">
-                            ALERTING_DISCORD_ENABLED=true<br>
-                            ALERTING_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-                        </div>
-                        <small style="color: var(--text-secondary); font-style: italic;">
-                            Webhook URL vytvoříte v nastavení Discord kanálu
-                        </small>
-                    </div>
-                    
-                    <div class="config-note" style="margin-top: 15px; padding: 10px; background: var(--color-yellow-light); border-radius: 4px; color: var(--text-primary);">
-                        <strong>📝 Poznámka:</strong> Po změně konfigurace restartujte aplikaci příkazem <code style="background: var(--bg-secondary); padding: 2px 4px; border-radius: 3px;">docker-compose restart</code>
                     </div>
                 </div>
             </div>
@@ -446,6 +430,74 @@
         <div class="modal-actions" id="alertModalActions">
             <button type="button" class="btn btn-secondary modal-close">Zavřít</button>
         </div>
+    </div>
+</div>
+
+<!-- Channel Configuration Modal -->
+<div id="channelModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="channelModalTitle">Přidat notifikační kanál</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        
+        <form id="channelForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="channelType">Typ kanálu*</label>
+                    <select id="channelType" name="channel_type" required>
+                        <option value="">Vyberte typ</option>
+                        <option value="discord">🎮 Discord</option>
+                        <option value="email">📧 Email</option>
+                        <option value="telegram">💬 Telegram</option>
+                        <option value="webhook">🔗 Webhook</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="channelName">Název kanálu*</label>
+                    <input type="text" id="channelName" name="name" required 
+                           placeholder="např. Discord Alerts">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="channelDescription">Popis</label>
+                <textarea id="channelDescription" name="description" rows="2"
+                         placeholder="Popis kanálu (volitelné)"></textarea>
+            </div>
+            
+            <!-- Dynamic configuration fields based on channel type -->
+            <div id="channelConfigFields">
+                <!-- Dynamic fields will be inserted here -->
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="rateLimitPerHour">Limit zpráv za hodinu</label>
+                    <input type="number" id="rateLimitPerHour" name="rate_limit_per_hour" 
+                           value="100" min="1" max="1000">
+                    <small>Maximální počet notifikací za hodinu</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="channelEnabled" name="enabled" checked>
+                        <span>Povolit tento kanál</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="cancelChannelEdit">Zrušit</button>
+                <button type="button" class="btn btn-secondary" id="testChannelBtn" style="display: none;">
+                    <span class="icon">🧪</span> Testovat
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="icon">💾</span> Uložit kanál
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
