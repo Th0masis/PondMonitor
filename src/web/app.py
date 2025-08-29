@@ -1099,6 +1099,69 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Failed to debug alerts: {e}")
             return jsonify({'error': str(e)}), 500
     
+    # Get single alert by ID
+    @app.route("/api/alerts/<alert_id>", methods=["GET"], endpoint="get_alert")
+    @log_requests
+    @handle_errors
+    def get_alert(alert_id: str):
+        """Get single alert by ID"""
+        try:
+            from src.services.alert_engine import get_alert_engine
+            
+            db = get_database()
+            
+            # Query alert from database
+            result = db.execute_query("""
+                SELECT id, rule_id, severity, metric_type, station_id, triggered_at,
+                       trigger_value, threshold_value, message, status,
+                       acknowledged_at, acknowledged_by, resolved_at, resolved_by,
+                       notifications_sent, related_data
+                FROM alert_history 
+                WHERE id = %s
+            """, (alert_id,))
+            
+            if not result.rows:
+                return jsonify({'error': 'Alert not found'}), 404
+            
+            alert_data = result.first_dict()
+            
+            # Parse JSON fields - handle both string and already-parsed data
+            notifications_sent = alert_data['notifications_sent'] or []
+            if isinstance(notifications_sent, str):
+                import json
+                notifications_sent = json.loads(notifications_sent)
+            
+            related_data = alert_data['related_data'] or {}
+            if isinstance(related_data, str):
+                import json
+                related_data = json.loads(related_data)
+            
+            # Format response
+            response_data = {
+                'id': alert_data['id'],
+                'rule_id': alert_data['rule_id'],
+                'severity': alert_data['severity'],
+                'metric_type': alert_data['metric_type'],
+                'station_id': alert_data['station_id'],
+                'triggered_at': alert_data['triggered_at'].isoformat() if alert_data['triggered_at'] else None,
+                'trigger_value': float(alert_data['trigger_value']) if alert_data['trigger_value'] is not None else None,
+                'threshold_value': float(alert_data['threshold_value']) if alert_data['threshold_value'] is not None else None,
+                'message': alert_data['message'],
+                'status': alert_data['status'],
+                'acknowledged_at': alert_data['acknowledged_at'].isoformat() if alert_data['acknowledged_at'] else None,
+                'acknowledged_by': alert_data['acknowledged_by'],
+                'resolved_at': alert_data['resolved_at'].isoformat() if alert_data['resolved_at'] else None,
+                'resolved_by': alert_data['resolved_by'],
+                'notifications_sent': notifications_sent,
+                'related_data': related_data
+            }
+            
+            return jsonify(response_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to get alert {alert_id}: {e}")
+            return jsonify({'error': str(e)}), 500
+    
     @app.route("/api/alerts/<alert_id>/acknowledge", methods=["POST"], endpoint="acknowledge_alert")
     @log_requests
     @handle_errors
@@ -1265,7 +1328,13 @@ def register_routes(app: Flask) -> None:
             
             for notif_raw in notifications_raw:
                 try:
-                    notification = json.loads(notif_raw.decode('utf-8'))
+                    # Handle both bytes and string data from Redis
+                    if isinstance(notif_raw, bytes):
+                        notification_str = notif_raw.decode('utf-8')
+                    else:
+                        notification_str = notif_raw
+                    
+                    notification = json.loads(notification_str)
                     notifications.append(notification)
                 except Exception as parse_error:
                     logger.warning(f"Failed to parse browser notification: {parse_error}")

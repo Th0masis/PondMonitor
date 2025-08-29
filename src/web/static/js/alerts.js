@@ -864,6 +864,172 @@ class AlertManager {
     }
     
     // Alert action methods
+    async showAlertDetails(alertId, isHistoryTab = false) {
+        try {
+            // First, try to find the alert in our local data
+            let alert = null;
+            
+            if (isHistoryTab && this.alertHistory) {
+                alert = this.alertHistory.find(a => a.id === alertId);
+            } else if (this.activeAlerts) {
+                alert = this.activeAlerts.find(a => a.id === alertId);
+            }
+            
+            // If not found locally, fetch from API
+            if (!alert) {
+                const response = await fetch(`/api/alerts/${alertId}`);
+                if (!response.ok) throw new Error('Failed to load alert details');
+                alert = await response.json();
+            }
+            
+            if (!alert) {
+                throw new Error('Alert not found');
+            }
+            
+            // Show the modal with alert details
+            this.displayAlertModal(alert);
+            
+        } catch (error) {
+            console.error('Failed to show alert details:', error);
+            this.showError('Failed to load alert details: ' + error.message);
+        }
+    }
+    
+    displayAlertModal(alert) {
+        const modal = document.getElementById('alertModal');
+        const modalTitle = document.getElementById('alertModalTitle');
+        const modalContent = document.getElementById('alertModalContent');
+        
+        // Set modal title
+        modalTitle.textContent = `Alert Details - ${alert.severity.toUpperCase()}`;
+        
+        // Create status badge HTML
+        const statusBadge = `<span class="status-badge ${alert.status}">${alert.status.charAt(0).toUpperCase() + alert.status.slice(1)}</span>`;
+        const severityBadge = `<span class="severity-badge ${alert.severity}">${alert.severity.toUpperCase()}</span>`;
+        
+        // Format timestamps
+        const formatDate = (dateStr) => {
+            if (!dateStr) return 'N/A';
+            return new Date(dateStr).toLocaleString();
+        };
+        
+        // Build modal content
+        modalContent.innerHTML = `
+            <div class="alert-detail-section">
+                <div class="alert-detail-header">
+                    <div class="alert-badges">
+                        ${statusBadge}
+                        ${severityBadge}
+                    </div>
+                </div>
+                
+                <div class="alert-detail-grid">
+                    <div class="alert-detail-item">
+                        <label>Alert ID:</label>
+                        <span class="monospace">${alert.id}</span>
+                    </div>
+                    
+                    <div class="alert-detail-item">
+                        <label>Rule ID:</label>
+                        <span class="monospace">${alert.rule_id}</span>
+                    </div>
+                    
+                    <div class="alert-detail-item">
+                        <label>Metric Type:</label>
+                        <span>${alert.metric_type}</span>
+                    </div>
+                    
+                    <div class="alert-detail-item">
+                        <label>Station ID:</label>
+                        <span>${alert.station_id || 'All stations'}</span>
+                    </div>
+                    
+                    <div class="alert-detail-item">
+                        <label>Triggered At:</label>
+                        <span>${formatDate(alert.triggered_at)}</span>
+                    </div>
+                    
+                    ${alert.trigger_value !== null ? `
+                    <div class="alert-detail-item">
+                        <label>Current Value:</label>
+                        <span class="value">${alert.trigger_value}</span>
+                    </div>
+                    ` : ''}
+                    
+                    ${alert.threshold_value !== null ? `
+                    <div class="alert-detail-item">
+                        <label>Threshold Value:</label>
+                        <span class="value">${alert.threshold_value}</span>
+                    </div>
+                    ` : ''}
+                    
+                    ${alert.acknowledged_at ? `
+                    <div class="alert-detail-item">
+                        <label>Acknowledged At:</label>
+                        <span>${formatDate(alert.acknowledged_at)}</span>
+                    </div>
+                    ` : ''}
+                    
+                    ${alert.acknowledged_by ? `
+                    <div class="alert-detail-item">
+                        <label>Acknowledged By:</label>
+                        <span>${alert.acknowledged_by}</span>
+                    </div>
+                    ` : ''}
+                    
+                    ${alert.resolved_at ? `
+                    <div class="alert-detail-item">
+                        <label>Resolved At:</label>
+                        <span>${formatDate(alert.resolved_at)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="alert-message">
+                    <label>Message:</label>
+                    <div class="message-content">${alert.message}</div>
+                </div>
+                
+                ${alert.notifications_sent && alert.notifications_sent.length > 0 ? `
+                <div class="alert-notifications">
+                    <label>Notifications Sent:</label>
+                    <div class="notifications-list">
+                        ${alert.notifications_sent.map(notification => `
+                            <div class="notification-item ${notification.success ? 'success' : 'failed'}">
+                                <span class="channel">${notification.channel}</span>
+                                <span class="recipient">${notification.recipient || 'N/A'}</span>
+                                <span class="status">${notification.success ? '✅ Sent' : '❌ Failed'}</span>
+                                ${notification.sent_at ? `<span class="time">${formatDate(notification.sent_at)}</span>` : ''}
+                                ${notification.error ? `<span class="error">${notification.error}</span>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        
+        // Add event listeners to close buttons
+        modal.querySelectorAll('.modal-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.hideModal(modal);
+            });
+        });
+        
+        // Add click outside to close
+        const clickOutsideHandler = (e) => {
+            if (e.target === modal) {
+                this.hideModal(modal);
+                modal.removeEventListener('click', clickOutsideHandler);
+            }
+        };
+        modal.addEventListener('click', clickOutsideHandler);
+        
+        // Show the modal
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    
     async acknowledgeAlert(alertId) {
         try {
             const response = await fetch(`/api/alerts/${alertId}/acknowledge`, {
@@ -1245,6 +1411,7 @@ class AlertManager {
     }
     
     hideModal(modal) {
+        modal.style.display = 'none';
         modal.classList.remove('show');
         document.body.style.overflow = '';
     }
