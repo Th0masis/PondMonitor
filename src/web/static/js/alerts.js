@@ -1960,33 +1960,102 @@ class AlertManager {
     }
     
     async loadAlertSettings() {
+        const container = document.getElementById('alertSettingsContainer');
+        const loading = container?.querySelector('.loading');
+        
         try {
             const response = await fetch('/api/alert-settings');
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const settings = await response.json();
             this.displayAlertSettings(settings);
+            
+            // Hide loading state
+            if (loading) loading.style.display = 'none';
+            
         } catch (error) {
             console.error('Error loading alert settings:', error);
+            
+            // Hide loading and show error message
+            if (loading) loading.style.display = 'none';
+            if (container) {
+                container.innerHTML = `
+                    <div class="error-state">
+                        <p style="color: var(--color-red);">⚠️ Chyba při načítání nastavení</p>
+                        <button onclick="alertManager.loadAlertSettings()" class="btn btn-sm btn-secondary">
+                            🔄 Zkusit znovu
+                        </button>
+                    </div>
+                `;
+            }
+            
             this.showNotification('Failed to load alert settings', 'error');
         }
     }
     
     displayAlertSettings(settings) {
-        const form = document.getElementById('alertSettingsForm');
-        if (!form) return;
+        const container = document.getElementById('alertSettingsContainer');
+        if (!container) return;
         
-        // Populate form fields
-        Object.keys(settings).forEach(key => {
-            const field = form.querySelector(`[name="${key}"]`);
-            if (field) {
-                if (field.type === 'checkbox') {
-                    field.checked = settings[key];
-                } else {
-                    field.value = settings[key];
-                }
-            }
-        });
+        // Create settings form HTML
+        const settingsHtml = `
+            <form id="alertSettingsForm" class="settings-form">
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="email_enabled" ${settings.email_enabled ? 'checked' : ''}>
+                        <span>📧 Povolit email notifikace</span>
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="browser_enabled" ${settings.browser_enabled !== false ? 'checked' : ''}>
+                        <span>🌐 Povolit browser notifikace</span>
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="sound_enabled" ${settings.sound_enabled !== false ? 'checked' : ''}>
+                        <span>🔔 Povolit zvukové upozornění</span>
+                    </label>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="default_severity">Výchozí závažnost</label>
+                        <select id="default_severity" name="default_severity">
+                            <option value="info" ${settings.default_severity === 'info' ? 'selected' : ''}>ℹ️ Info</option>
+                            <option value="warning" ${settings.default_severity === 'warning' ? 'selected' : ''}>⚠️ Warning</option>
+                            <option value="critical" ${settings.default_severity === 'critical' ? 'selected' : ''}>🚨 Critical</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="notification_cooldown">Cooldown (minuty)</label>
+                        <input type="number" id="notification_cooldown" name="notification_cooldown" 
+                               value="${settings.notification_cooldown || 30}" min="1" max="1440">
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <span class="icon">💾</span> Uložit nastavení
+                    </button>
+                </div>
+            </form>
+        `;
+        
+        container.innerHTML = settingsHtml;
+        
+        // Add form submission handler
+        const form = document.getElementById('alertSettingsForm');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveAlertSettings();
+            });
+        }
     }
     
     async saveAlertSettings() {

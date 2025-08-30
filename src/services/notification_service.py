@@ -710,22 +710,78 @@ class DiscordNotificationChannel(NotificationChannel):
                     error="Discord notifications not configured"
                 )
             
-            # Create Discord webhook
-            webhook = DiscordWebhook(url=self.config.discord_webhook_url, username="PondMonitor")
+            # Use requests directly with SSL verification disabled for corporate environments
+            import requests
+            import urllib3
+            # Suppress only the single warning from urllib3 needed
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             
-            # Create embed
-            embed = self._create_discord_embed(message)
-            webhook.add_embed(embed)
+            # Create Discord embed data
+            embed_data = {
+                "title": f"{message.severity.upper()}: {message.title}",
+                "description": message.message,
+                "color": {
+                    'critical': 0xFF0000,  # Red
+                    'warning': 0xFF8C00,   # Orange
+                    'info': 0x0099FF       # Blue
+                }.get(message.severity, 0x0099FF),
+                "fields": [],
+                "footer": {
+                    "text": "PondMonitor Alert System",
+                    "icon_url": "https://cdn-icons-png.flaticon.com/512/1077/1077114.png"
+                }
+            }
+            
+            # Add fields
+            if message.station_id:
+                embed_data["fields"].append({"name": "Station", "value": message.station_id, "inline": True})
+            
+            if message.metric_type:
+                embed_data["fields"].append({"name": "Metric", "value": message.metric_type.replace('_', ' ').title(), "inline": True})
+            
+            if message.trigger_value is not None:
+                embed_data["fields"].append({"name": "Current Value", "value": str(message.trigger_value), "inline": True})
+            
+            if message.threshold_value is not None:
+                embed_data["fields"].append({"name": "Threshold", "value": str(message.threshold_value), "inline": True})
+            
+            if message.alert_id:
+                embed_data["fields"].append({"name": "Alert ID", "value": message.alert_id, "inline": True})
+            
+            # Add timestamp
+            if message.timestamp:
+                embed_data["timestamp"] = message.timestamp.isoformat()
+            
+            # Prepare payload
+            payload = {
+                'username': 'PondMonitor',
+                'embeds': [embed_data]
+            }
             
             # Add chart if requested
+            files = None
             if message.include_chart:
                 chart_data = self.chart_generator.generate_alert_chart(message)
                 if chart_data:
-                    webhook.add_file(file=chart_data, filename="alert_chart.png")
-                    embed.set_image(url="attachment://alert_chart.png")
+                    files = {'file': ('alert_chart.png', chart_data, 'image/png')}
+                    embed_data["image"] = {"url": "attachment://alert_chart.png"}
             
-            # Send webhook
-            response = webhook.execute()
+            # Send webhook with SSL verification disabled for Docker/corporate environments
+            if files:
+                response = requests.post(
+                    self.config.discord_webhook_url,
+                    data={'payload_json': json.dumps(payload)},
+                    files=files,
+                    timeout=30,
+                    verify=False  # Disable SSL verification for corporate environments
+                )
+            else:
+                response = requests.post(
+                    self.config.discord_webhook_url,
+                    json=payload,
+                    timeout=10,
+                    verify=False  # Disable SSL verification for corporate environments
+                )
             
             if response.status_code in [200, 204]:
                 return NotificationResult(
