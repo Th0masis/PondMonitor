@@ -320,7 +320,7 @@ class BrowserNotificationService {
         this.showInPageNotification(notification);
         
         // Update notification badge/indicator
-        this.updateNotificationIndicator();
+        this.updateNotificationIndicator().catch(console.warn);
         
         // Dispatch custom event
         window.dispatchEvent(new CustomEvent('pondmonitor:notification', { 
@@ -466,9 +466,9 @@ class BrowserNotificationService {
         }, 300);
     }
     
-    updateNotificationIndicator() {
+    async updateNotificationIndicator() {
         // Update notification count in navigation or header
-        const unreadCount = this.getUnreadCount();
+        const unreadCount = await this.getUnreadCount();
         
         // Find notification indicators
         const indicators = document.querySelectorAll('.notification-indicator, #notificationIndicator');
@@ -491,9 +491,19 @@ class BrowserNotificationService {
         }
     }
     
-    getUnreadCount() {
-        // For now, count all notifications in queue as unread
-        // In a more sophisticated system, we'd track read status
+    async getUnreadCount() {
+        try {
+            // Get active alerts count instead of browser notifications
+            const response = await fetch('/api/alerts/active');
+            if (response.ok) {
+                const alerts = await response.json();
+                return alerts.length;
+            }
+        } catch (error) {
+            console.warn('Failed to get active alerts count:', error);
+        }
+        
+        // Fallback to notification queue length
         return this.notificationQueue.length;
     }
     
@@ -524,7 +534,7 @@ class BrowserNotificationService {
                     }
                 });
                 
-                this.updateNotificationIndicator();
+                this.updateNotificationIndicator().catch(console.warn);
                 return true;
             }
             
@@ -541,6 +551,9 @@ let browserNotificationService = null;
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
     browserNotificationService = new BrowserNotificationService();
+    
+    // Initialize the notification indicator
+    browserNotificationService.updateNotificationIndicator().catch(console.warn);
     
     // Make available globally
     window.BrowserNotificationService = browserNotificationService;
