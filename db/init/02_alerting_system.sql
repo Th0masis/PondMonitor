@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS notification_channels (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     
     -- Channel identification
-    channel_type VARCHAR(50) NOT NULL CHECK (channel_type IN ('email', 'sms', 'webhook', 'slack')),
+    channel_type VARCHAR(50) NOT NULL CHECK (channel_type IN ('email', 'sms', 'webhook', 'slack', 'discord', 'telegram')),
     name VARCHAR(255) NOT NULL,
     description TEXT,
     
