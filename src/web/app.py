@@ -1554,6 +1554,48 @@ def register_routes(app: Flask) -> None:
             logger.error(f"Failed to create notification channel: {e}")
             return jsonify({'error': str(e)}), 500
     
+    @app.route("/api/notification-channels/<channel_id>", methods=["GET"], endpoint="get_notification_channel")
+    @log_requests
+    @handle_errors
+    def get_notification_channel(channel_id: str):
+        """Get a specific notification channel"""
+        try:
+            db = get_database()
+            
+            result = db.execute_query("""
+                SELECT id, channel_type, name, description, config, enabled,
+                       last_test_at, last_test_success, last_error,
+                       rate_limit_per_hour, created_at, updated_at
+                FROM notification_channels
+                WHERE id = %s
+            """, (channel_id,))
+            
+            if not result.rows:
+                return jsonify({'error': 'Channel not found'}), 404
+            
+            row_dict = result.first_dict()
+            
+            channel = {
+                'id': str(row_dict['id']),
+                'channel_type': row_dict['channel_type'],
+                'name': row_dict['name'],
+                'description': row_dict['description'] or '',
+                'config': row_dict['config'],
+                'enabled': row_dict['enabled'],
+                'last_test_at': row_dict['last_test_at'].isoformat() if row_dict['last_test_at'] else None,
+                'last_test_success': row_dict['last_test_success'],
+                'last_error': row_dict['last_error'],
+                'rate_limit_per_hour': row_dict['rate_limit_per_hour'],
+                'created_at': row_dict['created_at'].isoformat(),
+                'updated_at': row_dict['updated_at'].isoformat()
+            }
+            
+            return jsonify(channel)
+            
+        except Exception as e:
+            logger.error(f"Failed to get notification channel {channel_id}: {e}")
+            return jsonify({'error': str(e)}), 500
+    
     @app.route("/api/notification-channels/<channel_id>", methods=["PUT"], endpoint="update_notification_channel")
     @log_requests
     @handle_errors
@@ -1725,7 +1767,8 @@ def register_routes(app: Flask) -> None:
                         'avatar_url': 'https://i.imgur.com/4M34hi2.png'  # Optional bot avatar
                     }
                     
-                    response = requests.post(webhook_url, json=payload, timeout=10)
+                    # Disable SSL verification for Docker environments
+                    response = requests.post(webhook_url, json=payload, timeout=10, verify=False)
                     response.raise_for_status()
                 
                 else:
@@ -1852,6 +1895,14 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             logger.error(f"Failed to update alert settings: {e}")
             return jsonify({'error': str(e)}), 500
+
+    # Legacy endpoint alias for compatibility
+    @app.route("/api/alerts/system-settings", methods=["GET"], endpoint="get_system_settings_legacy")
+    @log_requests
+    @handle_errors
+    def get_system_settings_legacy():
+        """Legacy alias for alert settings (redirects to correct endpoint)"""
+        return get_alert_settings()
 
 
 # Application factory

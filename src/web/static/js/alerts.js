@@ -1588,7 +1588,7 @@ class AlertManager {
             <div class="channel-item" data-channel-id="${channel.id}">
                 <div class="channel-info">
                     <div class="channel-header">
-                        <span class="channel-type">${this.getChannelTypeIcon(channel.type)} ${channel.type.toUpperCase()}</span>
+                        <span class="channel-type">${this.getChannelTypeIcon(channel.channel_type)} ${channel.channel_type.toUpperCase()}</span>
                         <span class="channel-status ${channel.enabled ? 'enabled' : 'disabled'}">
                             ${channel.enabled ? '✅ Enabled' : '⏸️ Disabled'}
                         </span>
@@ -1656,7 +1656,7 @@ class AlertManager {
     populateChannelForm(channel) {
         document.getElementById('channelId').value = channel.id || '';
         document.getElementById('channelName').value = channel.name || '';
-        document.getElementById('channelType').value = channel.type || '';
+        document.getElementById('channelType').value = channel.channel_type || '';
         document.getElementById('channelDescription').value = channel.description || '';
         document.getElementById('channelEnabled').checked = channel.enabled !== false;
         
@@ -1781,7 +1781,7 @@ class AlertManager {
         
         // Build config object from form fields
         const config = {};
-        const channelType = formData.get('type');
+        const channelType = formData.get('channel_type');
         
         switch (channelType) {
             case 'discord':
@@ -1808,11 +1808,13 @@ class AlertManager {
         
         const channelData = {
             name: formData.get('name'),
-            type: channelType,
+            channel_type: channelType,
             description: formData.get('description') || '',
             enabled: formData.get('enabled') === 'on',
             config: config
         };
+        
+        console.log('DEBUG: Sending channel data:', channelData);
         
         try {
             const url = channelId ? `/api/notification-channels/${channelId}` : '/api/notification-channels';
@@ -1905,7 +1907,7 @@ class AlertManager {
         
         // Build temporary channel object for testing
         const config = {};
-        const channelType = formData.get('type');
+        const channelType = formData.get('channel_type');
         
         switch (channelType) {
             case 'discord':

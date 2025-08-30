@@ -685,17 +685,23 @@ class AlertEngine:
             
             # Send notifications
             import asyncio
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Schedule in running loop
-                asyncio.create_task(
-                    self.notification_service.send_alert(notification, rule.channels)
-                )
-            else:
-                # Run in new loop
-                results = asyncio.run(
-                    self.notification_service.send_alert(notification, rule.channels)
-                )
+            try:
+                # Try to get the current event loop
+                try:
+                    loop = asyncio.get_running_loop()
+                    # We're in an async context, create a task
+                    asyncio.create_task(
+                        self.notification_service.send_alert(notification, rule.channels)
+                    )
+                    results = []  # Task runs in background, no results yet
+                except RuntimeError:
+                    # No running loop, we're in a thread or sync context
+                    results = asyncio.run(
+                        self.notification_service.send_alert(notification, rule.channels)
+                    )
+            except Exception as e:
+                logger.error(f"Failed to handle async notification sending: {e}")
+                results = []
                 
                 # Update notification status in database
                 notifications_sent = []

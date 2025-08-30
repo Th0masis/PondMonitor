@@ -794,11 +794,23 @@ class DiscordNotificationChannel(NotificationChannel):
     def test_connection(self) -> bool:
         """Test Discord webhook connection"""
         try:
-            webhook = DiscordWebhook(url=self.config.discord_webhook_url, username="PondMonitor")
-            embed = DiscordEmbed(title="Connection Test", description="PondMonitor Discord integration test", color=0x00FF00)
-            webhook.add_embed(embed)
+            # Use requests directly with SSL verification disabled for Docker environments
+            import requests
+            import urllib3
+            # Suppress only the single warning from urllib3 needed
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             
-            response = webhook.execute()
+            payload = {
+                'content': '**PondMonitor Connection Test**\nDiscord integration is working correctly!',
+                'username': 'PondMonitor'
+            }
+            
+            response = requests.post(
+                self.config.discord_webhook_url, 
+                json=payload, 
+                timeout=10, 
+                verify=False  # Disable SSL verification for Docker environments
+            )
             return response.status_code in [200, 204]
         except Exception as e:
             logger.error(f"Discord connection test failed: {e}")
@@ -907,7 +919,86 @@ class NotificationService:
         logger.info("Notification service initialized")
     
     def _init_channels(self):
-        """Initialize notification channels based on configuration"""
+        """Initialize notification channels from database configuration"""
+        from src.database import get_database
+        
+        try:
+            # Always add browser notifications (no database config needed)
+            if self.config.browser_notifications_enabled:
+                self.channels['browser'] = BrowserNotificationChannel(self.config)
+            
+            # Load channels from database
+            db = get_database()
+            result = db.execute_query("""
+                SELECT channel_type, name, config, enabled
+                FROM notification_channels
+                WHERE enabled = true
+                ORDER BY channel_type, name
+            """)
+            
+            for row_dict in result.to_dict_list():
+                channel_type = row_dict['channel_type']
+                channel_config = row_dict['config']
+                channel_name = row_dict['name'].lower()
+                
+                # Create appropriate channel instance based on type
+                if channel_type == 'discord' and channel_config.get('webhook_url'):
+                    # Create a mock config with database values
+                    mock_config = type('Config', (), {
+                        'discord_enabled': True,
+                        'discord_webhook_url': channel_config['webhook_url']
+                    })()
+                    # Copy other needed attributes from main config
+                    for attr in ['include_charts', 'chart_time_range_hours']:
+                        if hasattr(self.config, attr):
+                            setattr(mock_config, attr, getattr(self.config, attr))
+                    
+                    self.channels['discord'] = DiscordNotificationChannel(mock_config)
+                    
+                elif channel_type == 'telegram' and channel_config.get('bot_token'):
+                    # Create a mock config with database values
+                    mock_config = type('Config', (), {
+                        'telegram_enabled': True,
+                        'telegram_bot_token': channel_config['bot_token'],
+                        'telegram_chat_id': channel_config.get('chat_id')
+                    })()
+                    # Copy other needed attributes from main config
+                    for attr in ['include_charts', 'chart_time_range_hours']:
+                        if hasattr(self.config, attr):
+                            setattr(mock_config, attr, getattr(self.config, attr))
+                    
+                    self.channels['telegram'] = TelegramNotificationChannel(mock_config)
+                    
+                elif channel_type == 'email' and channel_config.get('smtp_server'):
+                    # Create a mock config with database values
+                    mock_config = type('Config', (), {
+                        'email_enabled': True,
+                        'smtp_server': channel_config['smtp_server'],
+                        'smtp_port': channel_config.get('smtp_port', 587),
+                        'smtp_username': channel_config.get('smtp_username'),
+                        'smtp_password': channel_config.get('smtp_password'),
+                        'smtp_use_tls': channel_config.get('smtp_use_tls', True),
+                        'email_from': channel_config.get('email_from'),
+                        'email_to': channel_config.get('email_to', [])
+                    })()
+                    # Copy other needed attributes from main config
+                    for attr in ['include_charts', 'chart_time_range_hours']:
+                        if hasattr(self.config, attr):
+                            setattr(mock_config, attr, getattr(self.config, attr))
+                    
+                    self.channels['email'] = EmailNotificationChannel(mock_config)
+            
+            logger.info(f"Initialized {len(self.channels)} notification channels from database: {list(self.channels.keys())}")
+            
+        except Exception as e:
+            logger.error(f"Failed to load notification channels from database: {e}")
+            # Fallback to .env config if database fails
+            self._init_channels_fallback()
+    
+    def _init_channels_fallback(self):
+        """Fallback to .env-based channel initialization"""
+        logger.warning("Using fallback .env-based channel initialization")
+        
         if self.config.email_enabled:
             self.channels['email'] = EmailNotificationChannel(self.config)
             
@@ -920,7 +1011,7 @@ class NotificationService:
         if self.config.browser_notifications_enabled:
             self.channels['browser'] = BrowserNotificationChannel(self.config)
         
-        logger.info(f"Initialized {len(self.channels)} notification channels: {list(self.channels.keys())}")
+        logger.info(f"Initialized {len(self.channels)} notification channels from .env: {list(self.channels.keys())}")
     
     async def send_alert(self, message: NotificationMessage, 
                         channels: Optional[List[str]] = None) -> List[NotificationResult]:
