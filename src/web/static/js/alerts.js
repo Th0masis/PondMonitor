@@ -1071,6 +1071,7 @@ class AlertManager {
             if (!skipBadgeUpdate) {
                 this.showSuccess('Alert acknowledged successfully');
                 this.loadActiveAlerts(); // Refresh active alerts
+                this.loadStatistics(); // Update statistics cards
                 
                 // Update menu badge
                 if (window.BrowserNotificationService) {
@@ -1101,6 +1102,7 @@ class AlertManager {
             if (!skipBadgeUpdate) {
                 this.showSuccess('Alert resolved successfully');
                 this.loadActiveAlerts(); // Refresh active alerts
+                this.loadStatistics(); // Update statistics cards
                 
                 // Update menu badge
                 if (window.BrowserNotificationService) {
@@ -1136,8 +1138,9 @@ class AlertManager {
             }
         }
         
-        // Refresh alerts list and update badge once at the end
+        // Refresh alerts list, statistics, and update badge once at the end
         this.loadActiveAlerts();
+        this.loadStatistics();
         if (window.BrowserNotificationService) {
             window.BrowserNotificationService.updateNotificationIndicator().catch(console.warn);
         }
