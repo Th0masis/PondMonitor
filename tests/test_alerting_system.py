@@ -426,21 +426,12 @@ class TestNotificationService:
         mock_config.discord_enabled = True
         mock_config.discord_webhook_url = "https://discord.com/api/webhooks/test"
         
-        try:
-            import discord_webhook
-        except ImportError:
-            pytest.skip("discord_webhook module not available")
-            
-        with patch('src.services.notification_service.DiscordWebhook') as mock_webhook:
+        with patch('src.services.notification_service.requests.post') as mock_post:
             # Mock successful response
             mock_response = Mock()
             mock_response.status_code = 200
             mock_response.text = "OK"
-            mock_webhook_instance = Mock()
-            mock_webhook_instance.execute.return_value = mock_response
-            mock_webhook_instance.add_embed = Mock()
-            mock_webhook_instance.add_file = Mock()
-            mock_webhook.return_value = mock_webhook_instance
+            mock_post.return_value = mock_response
             
             channel = DiscordNotificationChannel(mock_config)
             channel.chart_generator.generate_alert_chart = Mock(return_value=None)
