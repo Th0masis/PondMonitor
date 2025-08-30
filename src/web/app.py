@@ -1852,11 +1852,14 @@ def register_routes(app: Flask) -> None:
         """Update alert system settings"""
         try:
             data = request.get_json()
+            if not data:
+                return jsonify({'error': 'No data provided'}), 400
+                
             db = get_database()
             
-            # Build update query
-            update_fields = []
-            params = []
+            # Build update query - separate data fields from metadata fields
+            data_fields = []
+            data_params = []
             
             allowed_fields = [
                 'alerting_enabled', 'email_notifications_enabled', 'sms_notifications_enabled',
@@ -1866,26 +1869,33 @@ def register_routes(app: Flask) -> None:
                 'emergency_disable_threshold'
             ]
             
+            # Process only the fields that are provided and allowed
             for field in allowed_fields:
                 if field in data:
-                    update_fields.append(f'{field} = %s')
-                    params.append(data[field])
+                    data_fields.append(field)
+                    data_params.append(data[field])
             
-            if not update_fields:
+            if not data_fields:
                 return jsonify({'error': 'No valid fields to update'}), 400
             
-            update_fields.append('updated_at = NOW()')
-            update_fields.append('updated_by = %s')
-            params.append('ui_user')  # You could get actual user from session
+            # Since the row already exists (id=1), just use UPDATE
+            update_assignments = [f'{field} = %s' for field in data_fields] + ['updated_at = NOW()', 'updated_by = %s']
+            update_params = data_params + ['ui_user']
             
-            # Upsert settings
-            db.execute_query(f"""
-                INSERT INTO alert_system_settings (id, {', '.join([f.split(' = ')[0] for f in update_fields])})
-                VALUES (1, {', '.join(['%s'] * len(update_fields))})
-                ON CONFLICT (id) DO UPDATE SET {', '.join(update_fields)}
-            """, params, fetch=False)
+            query = f"""
+                UPDATE alert_system_settings 
+                SET {', '.join(update_assignments)}
+                WHERE id = 1
+            """
             
-            logger.info("Updated alert system settings")
+            # Debug logging
+            logger.debug(f"Query: {query}")
+            logger.debug(f"Update assignments: {update_assignments}")
+            logger.debug(f"Update params: {update_params}")
+            
+            db.execute_query(query, update_params, fetch=False)
+            
+            logger.info(f"Updated alert system settings: {list(data.keys())}")
             
             return jsonify({
                 'success': True,

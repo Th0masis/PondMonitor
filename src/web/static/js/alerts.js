@@ -2002,39 +2002,50 @@ class AlertManager {
             <form id="alertSettingsForm" class="settings-form">
                 <div class="form-group">
                     <label class="checkbox-label">
-                        <input type="checkbox" name="email_enabled" ${settings.email_enabled ? 'checked' : ''}>
+                        <input type="checkbox" name="alerting_enabled" ${settings.alerting_enabled !== false ? 'checked' : ''}>
+                        <span>🚨 Povolit upozornění</span>
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="email_notifications_enabled" ${settings.email_notifications_enabled !== false ? 'checked' : ''}>
                         <span>📧 Povolit email notifikace</span>
                     </label>
                 </div>
                 
                 <div class="form-group">
                     <label class="checkbox-label">
-                        <input type="checkbox" name="browser_enabled" ${settings.browser_enabled !== false ? 'checked' : ''}>
-                        <span>🌐 Povolit browser notifikace</span>
-                    </label>
-                </div>
-                
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="sound_enabled" ${settings.sound_enabled !== false ? 'checked' : ''}>
-                        <span>🔔 Povolit zvukové upozornění</span>
+                        <input type="checkbox" name="sms_notifications_enabled" ${settings.sms_notifications_enabled || false ? 'checked' : ''}>
+                        <span>📱 Povolit SMS notifikace</span>
                     </label>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="default_severity">Výchozí závažnost</label>
-                        <select id="default_severity" name="default_severity">
-                            <option value="info" ${settings.default_severity === 'info' ? 'selected' : ''}>ℹ️ Info</option>
-                            <option value="warning" ${settings.default_severity === 'warning' ? 'selected' : ''}>⚠️ Warning</option>
-                            <option value="critical" ${settings.default_severity === 'critical' ? 'selected' : ''}>🚨 Critical</option>
-                        </select>
+                        <label for="default_cooldown_minutes">Výchozí cooldown (minuty)</label>
+                        <input type="number" id="default_cooldown_minutes" name="default_cooldown_minutes" 
+                               value="${settings.default_cooldown_minutes || 60}" min="1" max="1440">
                     </div>
                     
                     <div class="form-group">
-                        <label for="notification_cooldown">Cooldown (minuty)</label>
-                        <input type="number" id="notification_cooldown" name="notification_cooldown" 
-                               value="${settings.notification_cooldown || 30}" min="1" max="1440">
+                        <label for="default_max_alerts_per_hour">Max. upozornění za hodinu</label>
+                        <input type="number" id="default_max_alerts_per_hour" name="default_max_alerts_per_hour" 
+                               value="${settings.default_max_alerts_per_hour || 10}" min="1" max="100">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="evaluation_interval_seconds">Interval vyhodnocování (sekundy)</label>
+                        <input type="number" id="evaluation_interval_seconds" name="evaluation_interval_seconds" 
+                               value="${settings.evaluation_interval_seconds || 60}" min="30" max="3600">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="history_retention_days">Uchovávání historie (dny)</label>
+                        <input type="number" id="history_retention_days" name="history_retention_days" 
+                               value="${settings.history_retention_days || 30}" min="1" max="365">
                     </div>
                 </div>
                 
@@ -2060,19 +2071,40 @@ class AlertManager {
     
     async saveAlertSettings() {
         const form = document.getElementById('alertSettingsForm');
-        const formData = new FormData(form);
+        if (!form) {
+            this.showNotification('Form not found', 'error');
+            return;
+        }
         
-        const settings = {};
-        for (let [key, value] of formData.entries()) {
-            // Convert checkbox values
-            if (form.querySelector(`[name="${key}"]`).type === 'checkbox') {
-                settings[key] = value === 'on';
-            } else {
-                settings[key] = value;
-            }
+        const button = form.querySelector('button[type="submit"]');
+        const originalText = button?.innerHTML;
+        if (button) {
+            button.innerHTML = '<div class="spinner"></div> Ukládám...';
+            button.disabled = true;
         }
         
         try {
+            // Build settings object by checking all form fields
+            const settings = {};
+            
+            // Handle checkboxes explicitly (they need to be false when unchecked)
+            const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                settings[checkbox.name] = checkbox.checked;
+            });
+            
+            // Handle other form fields
+            const otherFields = form.querySelectorAll('input:not([type="checkbox"]), select, textarea');
+            otherFields.forEach(field => {
+                if (field.type === 'number') {
+                    settings[field.name] = parseInt(field.value) || 0;
+                } else {
+                    settings[field.name] = field.value;
+                }
+            });
+            
+            console.log('DEBUG: Saving alert settings:', settings);
+            
             const response = await fetch('/api/alert-settings', {
                 method: 'PUT',
                 headers: {
@@ -2082,15 +2114,27 @@ class AlertManager {
             });
             
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || `HTTP ${response.status}`);
+                const errorText = await response.text();
+                let errorMessage;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    errorMessage = errorJson.message || errorJson.error || `HTTP ${response.status}`;
+                } catch {
+                    errorMessage = `HTTP ${response.status}: ${errorText}`;
+                }
+                throw new Error(errorMessage);
             }
             
-            this.showNotification('Alert settings saved successfully', 'success');
+            this.showNotification('Nastavení bylo úspěšně uloženo', 'success');
             
         } catch (error) {
             console.error('Error saving alert settings:', error);
-            this.showNotification(`Failed to save settings: ${error.message}`, 'error');
+            this.showNotification(`Chyba při ukládání nastavení: ${error.message}`, 'error');
+        } finally {
+            if (button) {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
         }
     }
     
