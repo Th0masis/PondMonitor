@@ -126,13 +126,17 @@ def create_app(config_file: str = ".env") -> Flask:
         alert_engine = init_alert_engine()
         logger.info("✅ Alert engine initialized")
         
-        # Initialize scheduler service
-        scheduler_service = init_scheduler_service()
-        logger.info("✅ Scheduler service initialized")
-        
-        # Start scheduler service
-        scheduler_service.start()
-        logger.info("✅ Scheduler service started")
+        # Initialize scheduler service (only in main process, not in Flask reloader)
+        import os
+        if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not config.flask.debug:
+            scheduler_service = init_scheduler_service()
+            logger.info("✅ Scheduler service initialized")
+            
+            # Start scheduler service
+            scheduler_service.start()
+            logger.info("✅ Scheduler service started")
+        else:
+            logger.info("🔄 Skipping scheduler initialization (Flask reloader process)")
         
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
