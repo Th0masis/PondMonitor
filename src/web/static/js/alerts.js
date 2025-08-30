@@ -1840,6 +1840,7 @@ class AlertManager {
             
             this.closeChannelModal();
             await this.loadNotificationChannels();
+            await this.loadNotificationStatus(); // Also refresh active channel status
             
         } catch (error) {
             console.error('Error saving channel:', error);
@@ -1874,6 +1875,7 @@ class AlertManager {
             
             this.showNotification('Channel deleted successfully', 'success');
             await this.loadNotificationChannels();
+            await this.loadNotificationStatus(); // Also refresh active channel status
             
         } catch (error) {
             console.error('Error deleting channel:', error);
