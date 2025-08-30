@@ -1544,6 +1544,14 @@ def register_routes(app: Flask) -> None:
             
             logger.info(f"Created notification channel: {data['name']} ({data['channel_type']})")
             
+            # Reload channels in notification service
+            try:
+                from src.services.notification_service import get_notification_service
+                notification_service = get_notification_service()
+                notification_service.reload_channels()
+            except Exception as e:
+                logger.warning(f"Failed to reload notification channels: {e}")
+            
             return jsonify({
                 'success': True,
                 'channel_id': channel_id,
@@ -1651,6 +1659,14 @@ def register_routes(app: Flask) -> None:
             
             logger.info(f"Updated notification channel: {channel_id}")
             
+            # Reload channels in notification service
+            try:
+                from src.services.notification_service import get_notification_service
+                notification_service = get_notification_service()
+                notification_service.reload_channels()
+            except Exception as e:
+                logger.warning(f"Failed to reload notification channels: {e}")
+            
             return jsonify({
                 'success': True,
                 'message': 'Channel updated successfully'
@@ -1684,6 +1700,14 @@ def register_routes(app: Flask) -> None:
             """, (channel_id,), fetch=False)
             
             logger.info(f"Deleted notification channel: {channel_name} ({channel_id})")
+            
+            # Reload channels in notification service
+            try:
+                from src.services.notification_service import get_notification_service
+                notification_service = get_notification_service()
+                notification_service.reload_channels()
+            except Exception as e:
+                logger.warning(f"Failed to reload notification channels: {e}")
             
             return jsonify({
                 'success': True,

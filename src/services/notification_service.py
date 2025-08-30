@@ -1069,6 +1069,13 @@ class NotificationService:
         
         logger.info(f"Initialized {len(self.channels)} notification channels from .env: {list(self.channels.keys())}")
     
+    def reload_channels(self):
+        """Reload notification channels from database"""
+        logger.info("Reloading notification channels from database...")
+        self.channels.clear()
+        self._init_channels()
+        logger.info(f"Reloaded {len(self.channels)} notification channels: {list(self.channels.keys())}")
+    
     async def send_alert(self, message: NotificationMessage, 
                         channels: Optional[List[str]] = None) -> List[NotificationResult]:
         """
