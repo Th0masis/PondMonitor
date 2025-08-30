@@ -13,6 +13,7 @@ class BrowserNotificationService {
         this.notificationQueue = [];
         this.maxNotifications = 50;
         this.seenNotifications = new Set();
+        this.lastAlertCount = -1; // Cache last alert count to avoid unnecessary updates
         
         // Initialize service
         this.init();
@@ -469,6 +470,13 @@ class BrowserNotificationService {
     async updateNotificationIndicator() {
         // Update notification count in navigation or header
         const unreadCount = await this.getUnreadCount();
+        
+        // Only update if count has changed
+        if (unreadCount === this.lastAlertCount) {
+            return;
+        }
+        
+        this.lastAlertCount = unreadCount;
         
         // Find notification indicators
         const indicators = document.querySelectorAll('.notification-indicator, #notificationIndicator');
