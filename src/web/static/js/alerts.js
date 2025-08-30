@@ -1054,7 +1054,7 @@ class AlertManager {
         document.body.style.overflow = 'hidden';
     }
     
-    async acknowledgeAlert(alertId) {
+    async acknowledgeAlert(alertId, skipBadgeUpdate = false) {
         try {
             const response = await fetch(`/api/alerts/${alertId}/acknowledge`, {
                 method: 'POST',
@@ -1068,8 +1068,15 @@ class AlertManager {
             
             if (!response.ok) throw new Error('Failed to acknowledge alert');
             
-            this.showSuccess('Alert acknowledged successfully');
-            this.loadActiveAlerts(); // Refresh active alerts
+            if (!skipBadgeUpdate) {
+                this.showSuccess('Alert acknowledged successfully');
+                this.loadActiveAlerts(); // Refresh active alerts
+                
+                // Update menu badge
+                if (window.BrowserNotificationService) {
+                    window.BrowserNotificationService.updateNotificationIndicator().catch(console.warn);
+                }
+            }
             
         } catch (error) {
             console.error('Failed to acknowledge alert:', error);
@@ -1077,7 +1084,7 @@ class AlertManager {
         }
     }
     
-    async resolveAlert(alertId) {
+    async resolveAlert(alertId, skipBadgeUpdate = false) {
         try {
             const response = await fetch(`/api/alerts/${alertId}/resolve`, {
                 method: 'POST',
@@ -1091,8 +1098,15 @@ class AlertManager {
             
             if (!response.ok) throw new Error('Failed to resolve alert');
             
-            this.showSuccess('Alert resolved successfully');
-            this.loadActiveAlerts(); // Refresh active alerts
+            if (!skipBadgeUpdate) {
+                this.showSuccess('Alert resolved successfully');
+                this.loadActiveAlerts(); // Refresh active alerts
+                
+                // Update menu badge
+                if (window.BrowserNotificationService) {
+                    window.BrowserNotificationService.updateNotificationIndicator().catch(console.warn);
+                }
+            }
             
         } catch (error) {
             console.error('Failed to resolve alert:', error);
@@ -1115,11 +1129,17 @@ class AlertManager {
         
         for (const alert of this.activeAlerts) {
             try {
-                await this.acknowledgeAlert(alert.id);
+                await this.acknowledgeAlert(alert.id, true); // Skip individual badge updates
                 successCount++;
             } catch (error) {
                 failCount++;
             }
+        }
+        
+        // Refresh alerts list and update badge once at the end
+        this.loadActiveAlerts();
+        if (window.BrowserNotificationService) {
+            window.BrowserNotificationService.updateNotificationIndicator().catch(console.warn);
         }
         
         if (failCount === 0) {
