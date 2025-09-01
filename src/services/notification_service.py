@@ -104,8 +104,14 @@ class NotificationChannel(ABC):
         pass
     
     @abstractmethod
-    def test_connection(self) -> bool:
-        """Test if channel is properly configured and accessible"""
+    def test_connection(self, send_test_message: bool = False) -> bool:
+        """
+        Test if channel is properly configured and accessible
+        
+        Args:
+            send_test_message: If True, sends an actual test message.
+                             If False, just performs connectivity check.
+        """
         pass
     
     @property
@@ -535,7 +541,7 @@ class EmailNotificationChannel(NotificationChannel):
                 error=str(e)
             )
     
-    def test_connection(self) -> bool:
+    def test_connection(self, send_test_message: bool = False) -> bool:
         """Test SMTP connection"""
         try:
             with smtplib.SMTP(self.config.smtp_server, self.config.smtp_port, timeout=10) as server:
@@ -671,7 +677,7 @@ class TelegramNotificationChannel(NotificationChannel):
         response = requests.post(url, files=files, data=data, timeout=30)
         response.raise_for_status()
     
-    def test_connection(self) -> bool:
+    def test_connection(self, send_test_message: bool = False) -> bool:
         """Test Telegram bot connection"""
         try:
             url = self.api_base + "getMe"
@@ -847,8 +853,14 @@ class DiscordNotificationChannel(NotificationChannel):
         
         return embed
     
-    def test_connection(self) -> bool:
-        """Test Discord webhook connection"""
+    def test_connection(self, send_test_message: bool = False) -> bool:
+        """
+        Test Discord webhook connection
+        
+        Args:
+            send_test_message: If True, sends an actual test message. 
+                             If False, just validates the webhook URL format and connectivity.
+        """
         try:
             # Use requests directly with SSL verification disabled for Docker environments
             import requests
@@ -856,6 +868,26 @@ class DiscordNotificationChannel(NotificationChannel):
             # Suppress only the single warning from urllib3 needed
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             
+            # For routine health checks, just validate URL format without sending messages
+            if not send_test_message:
+                # Basic URL validation
+                if not self.config.discord_webhook_url or 'discord.com/api/webhooks' not in self.config.discord_webhook_url:
+                    return False
+                
+                # Try a lightweight HEAD request instead of sending a message
+                try:
+                    response = requests.head(
+                        self.config.discord_webhook_url,
+                        timeout=5,
+                        verify=False
+                    )
+                    # Discord webhooks don't support HEAD, so we'll get 405, but that means it's reachable
+                    return response.status_code in [200, 204, 405]
+                except:
+                    # If HEAD fails, the webhook URL is probably not reachable
+                    return False
+            
+            # Only send actual test messages when explicitly requested
             payload = {
                 'content': '**PondMonitor Connection Test**\nDiscord integration is working correctly!',
                 'username': 'PondMonitor'
@@ -943,7 +975,7 @@ class BrowserNotificationChannel(NotificationChannel):
                 error=str(e)
             )
     
-    def test_connection(self) -> bool:
+    def test_connection(self, send_test_message: bool = False) -> bool:
         """Test browser notification capability"""
         return self.config.browser_notifications_enabled
     
@@ -1130,12 +1162,18 @@ class NotificationService:
         
         return results
     
-    def test_channels(self) -> Dict[str, bool]:
-        """Test connectivity for all configured channels"""
+    def test_channels(self, send_test_messages: bool = False) -> Dict[str, bool]:
+        """
+        Test connectivity for all configured channels
+        
+        Args:
+            send_test_messages: If True, sends actual test messages to channels.
+                              If False, just performs connectivity checks without sending messages.
+        """
         results = {}
         for name, channel in self.channels.items():
             try:
-                results[name] = channel.test_connection()
+                results[name] = channel.test_connection(send_test_messages)
             except Exception as e:
                 logger.error(f"Channel test failed for {name}: {e}")
                 results[name] = False

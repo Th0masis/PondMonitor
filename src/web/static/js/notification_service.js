@@ -43,6 +43,17 @@ class BrowserNotificationService {
         });
     }
     
+    destroy() {
+        console.log('🔔 Destroying Browser Notification Service...');
+        this.stopPolling();
+        this.notificationQueue = [];
+        this.seenNotifications.clear();
+        // Remove from global scope
+        if (window.BrowserNotificationService === this) {
+            delete window.BrowserNotificationService;
+        }
+    }
+    
     async requestNotificationPermission(forceRequest = false) {
         if (!('Notification' in window)) {
             console.warn('🔕 Prohlížeč nepodporuje desktop notifikace');
@@ -558,6 +569,12 @@ let browserNotificationService = null;
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+    // Destroy existing instance first
+    if (window.BrowserNotificationService) {
+        console.log('🔔 Browser Notification Service: Destroying existing instance...');
+        window.BrowserNotificationService.destroy();
+    }
+    
     browserNotificationService = new BrowserNotificationService();
     
     // Initialize the notification indicator

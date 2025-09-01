@@ -38,115 +38,77 @@ class AlertManager {
     setupEventListeners() {
         // Tab navigation is handled in setupTabNavigation()
         
+        // Helper function to safely add event listener (removes existing first)
+        const addSafeEventListener = (elementId, event, handler) => {
+            const element = document.getElementById(elementId);
+            if (element) {
+                // Remove existing listener first to prevent duplicates
+                element.removeEventListener(event, handler);
+                element.addEventListener(event, handler);
+            }
+        };
+        
+        // Store bound methods to enable proper cleanup
+        this.boundMethods = {
+            loadActiveAlerts: () => this.loadActiveAlerts(),
+            loadAlertRules: () => this.loadAlertRules(),
+            loadAlertHistory: () => this.loadAlertHistory(),
+            loadNotificationStatus: () => this.loadNotificationStatus(),
+            acknowledgeAllAlerts: () => this.acknowledgeAllAlerts(),
+            showRuleModal: () => this.showRuleModal(),
+            sendTestNotification: () => this.sendTestNotification(),
+            testBrowserNotification: () => this.testBrowserNotification(),
+            enableDesktopNotifications: () => this.enableDesktopNotifications(),
+            filterAlertRules: () => this.filterAlertRules(),
+            updateConditionFields: () => this.updateConditionFields(),
+            showChannelModal: () => this.showChannelModal(),
+            updateChannelConfigFields: () => this.updateChannelConfigFields(),
+            saveChannel: (e) => { e.preventDefault(); this.saveChannel(); },
+            hideChannelModal: () => this.hideModal(document.getElementById('channelModal')),
+            testCurrentChannel: () => this.testCurrentChannel(),
+            debouncedLoadAlertHistory: this.debounce(() => this.loadAlertHistory(), 500)
+        };
+        
         // Refresh buttons
-        document.getElementById('refreshActiveAlerts')?.addEventListener('click', () => {
-            this.loadActiveAlerts();
-        });
-        
-        document.getElementById('refreshAlertRules')?.addEventListener('click', () => {
-            this.loadAlertRules();
-        });
-        
-        document.getElementById('refreshHistory')?.addEventListener('click', () => {
-            this.loadAlertHistory();
-        });
-        
-        document.getElementById('refreshNotificationStatus')?.addEventListener('click', () => {
-            this.loadNotificationStatus();
-        });
+        addSafeEventListener('refreshActiveAlerts', 'click', this.boundMethods.loadActiveAlerts);
+        addSafeEventListener('refreshAlertRules', 'click', this.boundMethods.loadAlertRules);
+        addSafeEventListener('refreshHistory', 'click', this.boundMethods.loadAlertHistory);
+        addSafeEventListener('refreshNotificationStatus', 'click', this.boundMethods.loadNotificationStatus);
         
         // Acknowledge all alerts
-        document.getElementById('acknowledgeAllAlerts')?.addEventListener('click', () => {
-            this.acknowledgeAllAlerts();
-        });
+        addSafeEventListener('acknowledgeAllAlerts', 'click', this.boundMethods.acknowledgeAllAlerts);
         
         // Create new rule
-        document.getElementById('createNewRule')?.addEventListener('click', () => {
-            this.showRuleModal();
-        });
+        addSafeEventListener('createNewRule', 'click', this.boundMethods.showRuleModal);
         
-        // Test notifications
-        document.getElementById('testNotifications')?.addEventListener('click', () => {
-            this.sendTestNotification();
-        });
-        
-        document.getElementById('sendTestNotification')?.addEventListener('click', () => {
-            this.sendTestNotification();
-        });
-        
-        document.getElementById('testBrowserNotification')?.addEventListener('click', () => {
-            this.testBrowserNotification();
-        });
-        
-        document.getElementById('enableDesktopNotifications')?.addEventListener('click', () => {
-            this.enableDesktopNotifications();
-        });
-        
+        // Test notifications - Using the same handler for both buttons to prevent duplicates
+        addSafeEventListener('testNotifications', 'click', this.boundMethods.sendTestNotification);
+        addSafeEventListener('sendTestNotification', 'click', this.boundMethods.sendTestNotification);
+        addSafeEventListener('testBrowserNotification', 'click', this.boundMethods.testBrowserNotification);
+        addSafeEventListener('enableDesktopNotifications', 'click', this.boundMethods.enableDesktopNotifications);
         
         // History filters
-        document.getElementById('historyTimeRange')?.addEventListener('change', () => {
-            this.loadAlertHistory();
-        });
-        
-        document.getElementById('historySeverityFilter')?.addEventListener('change', () => {
-            this.loadAlertHistory();
-        });
-        
-        document.getElementById('historyStatusFilter')?.addEventListener('change', () => {
-            this.loadAlertHistory();
-        });
-        
-        document.getElementById('historySearchInput')?.addEventListener('input', 
-            this.debounce(() => this.loadAlertHistory(), 500)
-        );
+        addSafeEventListener('historyTimeRange', 'change', this.boundMethods.loadAlertHistory);
+        addSafeEventListener('historySeverityFilter', 'change', this.boundMethods.loadAlertHistory);
+        addSafeEventListener('historyStatusFilter', 'change', this.boundMethods.loadAlertHistory);
+        addSafeEventListener('historySearchInput', 'input', this.boundMethods.debouncedLoadAlertHistory);
         
         // Rule filters
-        document.getElementById('ruleTypeFilter')?.addEventListener('change', () => {
-            this.filterAlertRules();
-        });
-        
-        document.getElementById('metricTypeFilter')?.addEventListener('change', () => {
-            this.filterAlertRules();
-        });
-        
-        document.getElementById('severityFilter')?.addEventListener('change', () => {
-            this.filterAlertRules();
-        });
-        
-        document.getElementById('enabledOnlyFilter')?.addEventListener('change', () => {
-            this.filterAlertRules();
-        });
+        addSafeEventListener('ruleTypeFilter', 'change', this.boundMethods.filterAlertRules);
+        addSafeEventListener('metricTypeFilter', 'change', this.boundMethods.filterAlertRules);
+        addSafeEventListener('severityFilter', 'change', this.boundMethods.filterAlertRules);
+        addSafeEventListener('enabledOnlyFilter', 'change', this.boundMethods.filterAlertRules);
         
         // Rule form handlers
-        document.getElementById('ruleType')?.addEventListener('change', () => {
-            this.updateConditionFields();
-        });
-        
-        document.getElementById('ruleMetricType')?.addEventListener('change', () => {
-            this.updateConditionFields();
-        });
+        addSafeEventListener('ruleType', 'change', this.boundMethods.updateConditionFields);
+        addSafeEventListener('ruleMetricType', 'change', this.boundMethods.updateConditionFields);
         
         // Channel management event listeners
-        document.getElementById('addChannelBtn')?.addEventListener('click', () => {
-            this.showChannelModal();
-        });
-        
-        document.getElementById('channelType')?.addEventListener('change', () => {
-            this.updateChannelConfigFields();
-        });
-        
-        document.getElementById('channelForm')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.saveChannel();
-        });
-        
-        document.getElementById('cancelChannelEdit')?.addEventListener('click', () => {
-            this.hideModal(document.getElementById('channelModal'));
-        });
-        
-        document.getElementById('testChannelBtn')?.addEventListener('click', () => {
-            this.testCurrentChannel();
-        });
+        addSafeEventListener('addChannelBtn', 'click', this.boundMethods.showChannelModal);
+        addSafeEventListener('channelType', 'change', this.boundMethods.updateChannelConfigFields);
+        addSafeEventListener('channelForm', 'submit', this.boundMethods.saveChannel);
+        addSafeEventListener('cancelChannelEdit', 'click', this.boundMethods.hideChannelModal);
+        addSafeEventListener('testChannelBtn', 'click', this.boundMethods.testCurrentChannel);
     }
     
     setupTabNavigation() {
@@ -2165,10 +2127,41 @@ class AlertManager {
     
     // Cleanup
     destroy() {
+        console.log('🚨 Destroying AlertManager...');
+        
         // Clear intervals
         Object.values(this.refreshIntervals).forEach(interval => {
             if (interval) clearInterval(interval);
         });
+        
+        // Remove event listeners if bound methods exist
+        if (this.boundMethods) {
+            const removeListener = (elementId, event, handler) => {
+                const element = document.getElementById(elementId);
+                if (element && handler) {
+                    element.removeEventListener(event, handler);
+                }
+            };
+            
+            // Remove all event listeners
+            removeListener('refreshActiveAlerts', 'click', this.boundMethods.loadActiveAlerts);
+            removeListener('refreshAlertRules', 'click', this.boundMethods.loadAlertRules);
+            removeListener('refreshHistory', 'click', this.boundMethods.loadAlertHistory);
+            removeListener('refreshNotificationStatus', 'click', this.boundMethods.loadNotificationStatus);
+            removeListener('acknowledgeAllAlerts', 'click', this.boundMethods.acknowledgeAllAlerts);
+            removeListener('createNewRule', 'click', this.boundMethods.showRuleModal);
+            removeListener('testNotifications', 'click', this.boundMethods.sendTestNotification);
+            removeListener('sendTestNotification', 'click', this.boundMethods.sendTestNotification);
+            removeListener('testBrowserNotification', 'click', this.boundMethods.testBrowserNotification);
+            removeListener('enableDesktopNotifications', 'click', this.boundMethods.enableDesktopNotifications);
+            
+            this.boundMethods = null;
+        }
+        
+        // Remove from global scope
+        if (window.alertManager === this) {
+            delete window.alertManager;
+        }
     }
 }
 
@@ -2176,9 +2169,16 @@ class AlertManager {
 let alertManager;
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Destroy any existing instance first
+    if (window.alertManager) {
+        console.log('🚨 AlertManager: Destroying existing instance...');
+        window.alertManager.destroy();
+    }
+    
     console.log('🚨 AlertManager: DOM loaded, initializing...');
     try {
         alertManager = new AlertManager();
+        window.alertManager = alertManager; // Make it globally accessible
         console.log('✅ AlertManager: Successfully initialized');
     } catch (error) {
         console.error('❌ AlertManager: Failed to initialize:', error);
@@ -2189,6 +2189,9 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('beforeunload', () => {
     if (alertManager) {
         alertManager.destroy();
+    }
+    if (window.BrowserNotificationService) {
+        window.BrowserNotificationService.destroy();
     }
 });
 
