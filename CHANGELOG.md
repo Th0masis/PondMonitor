@@ -1941,6 +1941,98 @@ case 'discord':
 
 ---
 
+## 🔧 **Critical Fix: Duplicate Notification System**
+*January 2025 - Production Stability Enhancement*
+
+### 🚨 **Issue Resolved: Duplicate Discord Notifications**
+
+**Problem Identified:**
+- Multiple duplicate Discord test messages appearing after page refreshes on alerts.html
+- Periodic "Discord integration is working correctly!" messages sent every 60 seconds
+- Users experiencing notification spam in Discord channels
+
+**Root Cause Analysis:**
+1. **Multiple Service Initialization**: Both `notification_service.js` and `alerts.js` creating instances on every page load without proper cleanup
+2. **Event Listener Accumulation**: Page refreshes adding new event listeners while keeping old ones active in memory
+3. **Duplicate Test Buttons**: Two different buttons (`testNotifications` and `sendTestNotification`) both triggering same method
+4. **Periodic Health Checks**: Auto-refresh intervals calling Discord `test_connection()` which sent actual messages instead of just connectivity checks
+
+### ✅ **Comprehensive Solution Implemented**
+
+#### **1. Service Lifecycle Management**
+- **Files Modified**: 
+  - `src/web/static/js/notification_service.js`
+  - `src/web/static/js/alerts.js`
+- **Changes**: 
+  - Added singleton pattern with proper cleanup for both `BrowserNotificationService` and `AlertManager`
+  - Existing instances now destroyed before creating new ones
+  - Added comprehensive `destroy()` methods clearing intervals, event listeners, and global references
+
+#### **2. Safe Event Listener Management**
+- **Implementation**: `addSafeEventListener()` helper function
+- **Behavior**: Removes existing listeners before adding new ones to prevent duplicates  
+- **Scope**: Applied to all event handlers in AlertManager
+- **Result**: No more duplicate event handler registrations
+
+#### **3. Discord Connection Test Optimization**
+- **Files Modified**: `src/services/notification_service.py`
+- **Enhancement**: `test_connection(send_test_message=False)` parameter added
+- **Logic**: 
+  - Routine health checks: Only validate connectivity without sending messages
+  - Explicit user tests: Send actual test messages when `send_test_message=True`
+  - Uses lightweight HEAD requests for connectivity verification
+- **Impact**: Eliminates periodic Discord spam while maintaining test functionality
+
+#### **4. Proper Cleanup Implementation**
+- **Event Listeners**: All handlers now have corresponding removal in destroy methods
+- **Intervals**: Auto-refresh timers properly cleared on instance destruction
+- **Global References**: Services removed from global scope during cleanup
+- **Page Lifecycle**: Cleanup triggered on both page unload and before new instance creation
+
+### 📊 **Technical Results**
+
+**Before Fix:**
+- Multiple AlertManager instances running simultaneously
+- 2-4 duplicate notifications per test button click
+- Discord messages every 60 seconds from health checks
+- Memory leaks from uncleaned event listeners
+
+**After Fix:**
+- Single AlertManager instance with proper lifecycle
+- Exactly 1 notification per test button click
+- No periodic Discord messages from health checks
+- Clean memory management with proper cleanup
+
+### 🎯 **User Experience Impact**
+
+✅ **Eliminated notification spam** - No more duplicate Discord messages  
+✅ **Proper test functionality** - Test buttons work correctly after page refreshes  
+✅ **Silent health monitoring** - Connectivity checks don't send actual messages  
+✅ **Reliable service behavior** - Consistent single-instance operation  
+
+### 🔧 **Files Modified**
+
+1. **`src/web/static/js/notification_service.js`**
+   - Added instance cleanup and singleton pattern
+   - Added `destroy()` method for proper service cleanup
+
+2. **`src/web/static/js/alerts.js`** 
+   - Implemented safe event listener management
+   - Added comprehensive AlertManager cleanup
+   - Applied singleton pattern with instance replacement
+
+3. **`src/services/notification_service.py`**
+   - Enhanced `test_connection()` with optional test message parameter
+   - Updated all notification channel implementations
+   - Optimized health checks to avoid sending actual messages
+
+**Total Lines Modified**: ~150 lines across 3 files  
+**Issue Severity**: Critical (affecting production Discord channels)  
+**Fix Complexity**: High (required architectural changes to service lifecycle)  
+**Testing Status**: Verified - no more duplicate notifications in testing environment
+
+---
+
 ## 🔄 **Change Log Format**
 
 Each week entry includes:
